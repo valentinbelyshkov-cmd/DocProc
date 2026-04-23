@@ -1,0 +1,8 @@
+paddleocr>=3.0
+pypdfium2
+Pillow
+fastapi
+uvicorn[standard]
+python-multipart
+python-magic
+openai>=1.55
