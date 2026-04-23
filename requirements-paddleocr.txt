@@ -9,3 +9,4 @@ paddlepaddle>=2.0.0
 opencv-python>=4.5.0
 pytesseract>=0.3.8 # Tesseract wrapper
 pyocr>=0.8.5
+requests>=2.25.0
