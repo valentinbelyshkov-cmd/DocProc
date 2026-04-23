@@ -5,6 +5,7 @@ Pillow>=9.0.0 # Image handling
 pytesseract>=0.3.8 # Tesseract wrapper
 pdf2image>=1.16.0 # PDF to image conversion
 python-docx>=0.8.11 # DOCX creation
+requests>=2.25.0
 
 # Image Preprocessing (Optional but used by enhance_image)
 # Pillow also handles some basic enhancements

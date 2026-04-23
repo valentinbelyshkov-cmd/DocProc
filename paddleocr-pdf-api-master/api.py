@@ -14,6 +14,7 @@ import magic
 import pypdfium2 as pdfium
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 from paddleocr import PaddleOCRVL
 from PIL import Image
 
@@ -471,6 +472,18 @@ class OCRWorker:
                 try:
                     result = ocr.predict(input=tmp_path)
 
+                    # Visualization logic
+                    try:
+                        vis_dir = job_dir / "visualized"
+                        vis_dir.mkdir(exist_ok=True)
+                        vis_path = vis_dir / f"page_{page_idx + 1}.png"
+                        if result and hasattr(result[0], "save_to_img"):
+                            result[0].save_to_img(str(vis_path))
+                        elif result and hasattr(result, "save_to_img"):
+                             result.save_to_img(str(vis_path))
+                    except Exception as ve:
+                        print(f"[{job_id[:8]}] Visualization failed for page {page_idx + 1}: {ve}")
+
                     markdown_parts = []
                     for res in result:
                         md_data = res._to_markdown(pretty=False)
@@ -605,7 +618,18 @@ def get_job_status(job_id: str):
         "total_pages": job["total_pages"],
         "processed_pages": job["processed_pages"],
         "error": job["error"],
+        "created_at": job["created_at"],
+        "updated_at": job["updated_at"],
     }
+
+
+@app.get("/ocr/{job_id}/image/{page_num}")
+def get_job_image(job_id: str, page_num: int):
+    job_dir = Path(UPLOAD_DIR) / job_id
+    img_path = job_dir / "visualized" / f"page_{page_num}.png"
+    if not img_path.exists():
+        raise HTTPException(404, "Image not found or not yet processed")
+    return FileResponse(str(img_path))
 
 
 @app.get("/ocr/{job_id}/pages/{page_num}")

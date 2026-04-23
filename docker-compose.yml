@@ -1,11 +1,11 @@
-version: '3'
+version: '3.8'
 
 services:
-  ocr-pdf-docx:
+  frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ocr-pdf-docx
+    container_name: ocr-frontend
     ports:
       - "8011:8011"
     volumes:
@@ -13,11 +13,29 @@ services:
     environment:
       - DOCKER_ENV=true
       - PORT=8011
-      # Uncomment the following line for development mode
-      # - FLASK_ENV=development
+      - PADDLEOCR_API_URL=http://paddleocr-api:8000
+    depends_on:
+      - paddleocr-api
     restart: unless-stopped
-    # Increase memory limit if needed for larger documents
+
+  paddleocr-api:
+    build:
+      context: ./paddleocr-pdf-api-master
+      dockerfile: Dockerfile
+    container_name: paddleocr-api
+    ports:
+      - "8099:8000"
+    volumes:
+      - ocr-data:/data
+    restart: unless-stopped
+    # Use GPU if available
     deploy:
       resources:
-        limits:
-          memory: 2G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  ocr-data:
