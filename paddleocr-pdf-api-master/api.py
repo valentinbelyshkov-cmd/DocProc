@@ -9,6 +9,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Optional, List, Dict, Any, Union
 
 import json
 import magic
@@ -34,35 +35,28 @@ def _summarize_for_log(obj, max_str_len=200):
         return obj
 # Robust import for PaddleOCR, draw_ocr and PPStructure
 try:
-    from paddleocr import PaddleOCR, draw_ocr, PPStructure
+    from paddleocr import PaddleOCR, draw_ocr
 except ImportError:
-    # Try alternative import paths for PaddleOCR
+    PaddleOCR = None
+    draw_ocr = None
+
+try:
+    from paddleocr import PPStructure
+except ImportError:
     try:
-        from paddleocr import PaddleOCR, draw_ocr, PPStructure
+        from paddleocr.ppstructure.predict_system import PredictSystem as PPStructure
     except ImportError:
-        try:
-            from paddleocr.paddleocr import PaddleOCR, PPStructure
-            from paddleocr import draw_ocr
-        except ImportError:
-            PaddleOCR = None
-            PPStructure = None
+        PPStructure = None
 
-    # Try alternative import paths for draw_ocr if not already imported
-    if 'draw_ocr' not in locals():
-        try:
-            from paddleocr import draw_ocr
-        except ImportError:
-            try:
-                from paddleocr import draw_OCR as draw_ocr
-            except ImportError:
-                try:
-                    from paddleocr.tools.infer.utility import draw_ocr
-                except ImportError:
-                    # Fallback: define a dummy draw_ocr that returns the image unchanged
-                    def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
-                        return image
+# Fallback for draw_ocr if still None
+if draw_ocr is None:
+    try:
+        from paddleocr.tools.infer.utility import draw_ocr
+    except ImportError:
+        def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
+            return image
 
-# Provide draw_OCR as an alias to draw_ocr for compatibility
+# Provide draw_OCR as an alias for compatibility
 draw_OCR = draw_ocr
 
 from PIL import Image, ImageDraw
@@ -718,31 +712,39 @@ class OCRWorker:
                             else:
                                 if not hasattr(self, '_layout_engine') or self._layout_engine is None:
                                     print(f"[{job_id[:8]}] Initializing PPStructure layout engine...")
-                                    self._layout_engine = PPStructure(show_log=False, lang='ru', table=False, ocr=False)
+                                    try:
+                                        self._layout_engine = PPStructure(show_log=False, lang='ru', layout=True, table=False, ocr=False)
+                                    except Exception as e:
+                                        print(f"[{job_id[:8]}] Error initializing PPStructure: {e}")
+                                        self._layout_engine = None
                                 
-                                img_np = np.array(pil_image)
-                                layout_res = self._layout_engine(img_np)
-                                print(f"[{job_id[:8]}] Layout engine returned {len(layout_res)} regions")
-                                
-                                mask_count = 0
-                                seals_dir = job_dir / "seals"
-                                seals_dir.mkdir(exist_ok=True)
-                                
-                                draw = ImageDraw.Draw(pil_image)
-                                for i, region in enumerate(layout_res):
-                                    region_type = region.get('type', 'unknown').lower()
-                                    print(f"[{job_id[:8]}] Region {i} type: {region_type}")
-                                    if region_type == 'seal':
-                                        bbox = region['bbox'] # [x1, y1, x2, y2]
-                                        # Crop and save seal
-                                        seal_crop = pil_image.crop((bbox[0], bbox[1], bbox[2], bbox[3]))
-                                        seal_path = seals_dir / f"page_{page_idx + 1}_seal_{i}.png"
-                                        seal_crop.save(seal_path)
-                                        print(f"[{job_id[:8]}] Found seal at {bbox}, saved to {seal_path}")
-                                        
-                                        # Mask on original
-                                        draw.rectangle([bbox[0], bbox[1], bbox[2], bbox[3]], fill="white")
-                                        mask_count += 1
+                                if self._layout_engine:
+                                    img_np = np.array(pil_image)
+                                    layout_res = self._layout_engine(img_np)
+                                    print(f"[{job_id[:8]}] Layout engine returned {len(layout_res)} regions")
+                                    
+                                    mask_count = 0
+                                    seals_dir = job_dir / "seals"
+                                    seals_dir.mkdir(exist_ok=True)
+                                    
+                                    draw = ImageDraw.Draw(pil_image)
+                                    for i, region in enumerate(layout_res):
+                                        region_type = region.get('type', 'unknown').lower()
+                                        print(f"[{job_id[:8]}] Region {i} type: {region_type}")
+                                        if region_type == 'seal':
+                                            bbox = region['bbox'] # [x1, y1, x2, y2]
+                                            # Crop and save seal
+                                            try:
+                                                seal_crop = pil_image.crop((bbox[0], bbox[1], bbox[2], bbox[3]))
+                                                seal_path = seals_dir / f"page_{page_idx + 1}_seal_{i}.png"
+                                                seal_crop.save(seal_path)
+                                                print(f"[{job_id[:8]}] Found seal at {bbox}, saved to {seal_path}")
+                                                
+                                                # Mask on original
+                                                draw.rectangle([bbox[0], bbox[1], bbox[2], bbox[3]], fill="white")
+                                                mask_count += 1
+                                            except Exception as ce:
+                                                print(f"[{job_id[:8]}] Error cropping/masking seal: {ce}")
                                 
                                 if mask_count > 0:
                                     print(f"[{job_id[:8]}] Total masked {mask_count} seals on page {page_idx + 1}")
@@ -1046,9 +1048,23 @@ def shutdown():
     worker.stop()
 
 
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "PaddleOCR": PaddleOCR is not None,
+        "PPStructure": PPStructure is not None,
+        "draw_ocr": draw_ocr is not None
+    }
+
+
 @app.post("/ocr")
-async def submit_job(file: UploadFile = File(...), detect_seal: str = Form("false")):
-    is_detect_seal = str(detect_seal).lower() in ("true", "1", "on", "yes")
+async def submit_job(file: UploadFile = File(...), detect_seal: Optional[str] = Form(None)):
+    # Handle the fact that detect_seal might be a string ("true"/"false") or missing
+    is_detect_seal = False
+    if detect_seal is not None:
+        is_detect_seal = str(detect_seal).lower() in ("true", "1", "on", "yes")
+    
     print(f"Received OCR job submission. Raw detect_seal: {detect_seal}, interpreted as: {is_detect_seal}")
     suffix = Path(file.filename or "").suffix.lower()
     is_pdf = suffix == ".pdf"
