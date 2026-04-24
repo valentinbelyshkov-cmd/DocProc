@@ -1,15 +1,13 @@
 # Self-Hosted PDF OCR API for Large Documents
 
-A self-hosted PDF OCR API powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) and the PaddleOCR-VL model. Runs on GPU via Docker, processes PDFs page-by-page, and returns markdown content in JSON responses. Good support (not perfect) for Latvian and Lithuanian languages.
+A self-hosted PDF OCR API powered by [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR). Runs via Docker, processes PDFs page-by-page, and returns markdown content in JSON responses. Optimized for Russian language.
 
 ## Model
 
 | | |
 |---|---|
-| **Model** | PaddleOCR-VL-1.5 |
-| **Parameters** | 0.9B |
-| **Layout detection** | PP-DocLayoutV3 |
-| **GPU VRAM** | ~8.5GB |
+| **Model** | PaddleOCR |
+| **Languages** | Russian (default) |
 | **Input formats** | PDF, PNG, JPG, JPEG, BMP, TIFF, WEBP |
 
 ## Requirements
@@ -280,7 +278,7 @@ volumes:
 1. A PDF is uploaded and saved to disk
 2. A background worker picks up queued jobs in order
 3. Each page is rendered to an image using pypdfium2
-4. PaddleOCR-VL extracts text and converts it to markdown
+4. PaddleOCR extracts text and converts it to markdown
 5. HTML tags and image placeholders are stripped from the output
 6. Results are stored in SQLite and available per-page as they complete
 7. Jobs interrupted by a restart are automatically re-queued

@@ -15,7 +15,7 @@ import pypdfium2 as pdfium
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
-from paddleocr import PaddleOCRVL
+from paddleocr import PaddleOCR
 from PIL import Image
 
 
@@ -391,8 +391,13 @@ class OCRWorker:
 
     def _load_model(self):
         if self._model is None:
-            print("Loading PaddleOCR-VL model...")
-            self._model = PaddleOCRVL()
+            print("Loading PaddleOCR model...")
+            self._model = PaddleOCR(
+                use_angle_cls=True,
+                use_doc_orientation_classify=True,
+                use_doc_unwarping=True,
+                lang='ru'
+            )
             print("Model loaded.")
         return self._model
 
@@ -470,40 +475,20 @@ class OCRWorker:
                     tmp_path = tmp.name
 
                 try:
-                    result = ocr.predict(input=tmp_path)
+                    result = ocr.predict(tmp_path)
 
                     # Visualization logic
                     try:
                         vis_dir = job_dir / "visualized"
                         vis_dir.mkdir(exist_ok=True)
                         vis_path = vis_dir / f"page_{page_idx + 1}.png"
-                        if result and hasattr(result[0], "save_to_img"):
-                            result[0].save_to_img(str(vis_path))
-                        elif result and hasattr(result, "save_to_img"):
-                             result.save_to_img(str(vis_path))
+                        # For PaddleOCR, we save the rendered page image.
+                        # In the future, draw_ocr can be used for bounding boxes.
+                        pil_image.save(str(vis_path))
                     except Exception as ve:
                         print(f"[{job_id[:8]}] Visualization failed for page {page_idx + 1}: {ve}")
 
-                    markdown_parts = []
-                    for res in result:
-                        md_data = res._to_markdown(pretty=False)
-                        if isinstance(md_data, dict):
-                            text = md_data.get("markdown_texts") or md_data.get("markdown") or ""
-                            images = md_data.get("markdown_images") or {}
-                            if text:
-                                if IMAGE_DESCRIPTION_ENABLED and images:
-                                    text = describe_images(
-                                        text, images,
-                                        page_num=page_idx + 1, job_id=job_id,
-                                    )
-                                else:
-                                    text = strip_image_tags(text)
-                                markdown_parts.append(text)
-
-                    if not markdown_parts:
-                        markdown_parts = [self._extract_text(result)]
-
-                    page_markdown = "\n\n".join(markdown_parts)
+                    page_markdown = self._extract_text(result)
                     page_markdown = convert_html_tables(page_markdown)
                     page_markdown = strip_html(page_markdown)
 
@@ -541,13 +526,29 @@ class OCRWorker:
 
     def _extract_text(self, result):
         texts = []
-        for res in result:
-            if hasattr(res, "rec_text"):
-                texts.append(res.rec_text)
-            elif hasattr(res, "text"):
-                texts.append(res.text)
-            else:
-                texts.append(str(res))
+        # result is a list of pages, each page is a list of lines
+        if not result:
+            return ""
+        
+        for page_lines in result:
+            if not page_lines:
+                continue
+            for line in page_lines:
+                # line is usually [bbox, (text, confidence)] or a dict in some versions
+                if isinstance(line, (list, tuple)) and len(line) >= 2:
+                    raw_info = line[1]
+                    if isinstance(raw_info, dict):
+                        text = raw_info.get("text", "")
+                    elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
+                        text = raw_info[0]
+                    else:
+                        text = str(raw_info)
+                    if text:
+                        texts.append(text)
+                elif isinstance(line, dict):
+                    text = line.get("text", "")
+                    if text:
+                        texts.append(text)
         return "\n".join(texts)
 
 
