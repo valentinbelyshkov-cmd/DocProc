@@ -4,6 +4,7 @@ import logging
 import requests
 import uuid
 import json
+import zipfile
 import pandas as pd
 from io import BytesIO
 from docx import Document
@@ -24,7 +25,7 @@ app = Flask(__name__)
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff', 'webp'}
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff', 'webp', 'zip'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # 64 MB limit
@@ -46,7 +47,8 @@ def allowed_file(filename):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    tasks = session.get('tasks', [])
+    return render_template('index.html', has_tasks=len(tasks) > 0)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -65,26 +67,81 @@ def upload_file():
 
     filename = secure_filename(file.filename)
     
-    # Send file to PaddleOCR API
-    try:
-        files = {'file': (filename, file.read(), file.content_type)}
-        response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files)
-        response.raise_for_status()
-        job_data = response.json()
-        
-        task_id = job_data['job_id']
-        session['task_id'] = task_id
-        session['filename'] = filename
-        
-        return redirect(url_for('status', task_id=task_id))
-    except Exception as e:
-        logger.error(f"Error sending file to PaddleOCR API: {e}")
-        flash(f"Ошибка подключения к OCR бэкенду: {e}", 'error')
+    if 'tasks' not in session:
+        session['tasks'] = []
+    
+    # Check if it's a ZIP file
+    if filename.lower().endswith('.zip'):
+        try:
+            zip_data = BytesIO(file.read())
+            processed_any = False
+            with zipfile.ZipFile(zip_data) as z:
+                for zinfo in z.infolist():
+                    if zinfo.is_dir():
+                        continue
+                    
+                    z_filename = os.path.basename(zinfo.filename)
+                    # Skip empty filenames, hidden files, and unsupported files (including nested zips to avoid complexity)
+                    if not z_filename or z_filename.startswith('.') or not allowed_file(z_filename) or z_filename.lower().endswith('.zip'):
+                        continue
+                    
+                    with z.open(zinfo) as zf:
+                        file_content = zf.read()
+                        
+                        # Send to OCR API
+                        files = {'file': (z_filename, file_content)}
+                        try:
+                            response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files)
+                            response.raise_for_status()
+                            job_data = response.json()
+                            
+                            task_id = job_data['job_id']
+                            session['tasks'].append({'task_id': task_id, 'filename': z_filename})
+                            processed_any = True
+                        except Exception as e:
+                            logger.error(f"Error sending file {z_filename} from ZIP to OCR API: {e}")
+            
+            session.modified = True
+            if not processed_any:
+                flash('В архиве не найдено подходящих файлов или произошла ошибка', 'error')
+                return redirect(url_for('index'))
+            
+            return redirect(url_for('status_page'))
+            
+        except Exception as e:
+            logger.error(f"Error processing ZIP file: {e}")
+            flash(f"Ошибка при обработке ZIP архива: {e}", 'error')
+            return redirect(url_for('index'))
+    else:
+        # Send file to PaddleOCR API
+        try:
+            files = {'file': (filename, file.read(), file.content_type)}
+            response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files)
+            response.raise_for_status()
+            job_data = response.json()
+            
+            task_id = job_data['job_id']
+            session['tasks'].append({'task_id': task_id, 'filename': filename})
+            session.modified = True
+            
+            return redirect(url_for('status_page'))
+        except Exception as e:
+            logger.error(f"Error sending file to PaddleOCR API: {e}")
+            flash(f"Ошибка подключения к OCR бэкенду: {e}", 'error')
+            return redirect(url_for('index'))
+
+@app.route('/status')
+def status_page():
+    tasks = session.get('tasks', [])
+    if not tasks:
         return redirect(url_for('index'))
+    return render_template('status.html', tasks=tasks)
 
 @app.route('/status/<task_id>')
 def status(task_id):
-    return render_template('status.html', task_id=task_id)
+    # This route is now mostly for backward compatibility or direct access
+    # but we can make it redirect to the new status page or handle it there
+    return render_template('status.html', tasks=[{'task_id': task_id, 'filename': 'Документ'}], single_task=task_id)
 
 @app.route('/api/task_status/<task_id>')
 def task_status(task_id):
@@ -137,7 +194,8 @@ def task_status(task_id):
 
 @app.route('/success/<task_id>')
 def success(task_id):
-    filename = session.get('filename', 'документ')
+    tasks = session.get('tasks', [])
+    filename = next((t['filename'] for t in tasks if t['task_id'] == task_id), 'документ')
     processing_time = session.get(f'processing_time_{task_id}', 'Н/Д')
     
     # Auto-save results to output folder
