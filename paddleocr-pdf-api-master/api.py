@@ -18,7 +18,9 @@ import pypdfium2 as pdfium
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, Form
 from fastapi.responses import FileResponse
-import numpy as np
+from typing import Optional, List, Dict, Any, Union
+
+_import_errors = []
 
 def _summarize_for_log(obj, max_str_len=200):
     """Рекурсивно заменяет numpy arrays на компактное описание, остальное оставляет как есть."""
@@ -53,23 +55,47 @@ except ImportError:
 try:
     import paddleocr
     print(f"DEBUG: paddleocr version: {getattr(paddleocr, '__version__', 'unknown')}")
+    print(f"DEBUG: paddleocr path: {getattr(paddleocr, '__file__', 'unknown')}")
     from paddleocr import PPStructure
     print("DEBUG: Imported PPStructure from paddleocr")
 except Exception as e:
-    print(f"DEBUG: Failed to import PPStructure from paddleocr: {e}")
+    err_msg = f"Failed to import PPStructure from paddleocr: {type(e).__name__}: {e}"
+    print(f"DEBUG: {err_msg}")
+    _import_errors.append(err_msg)
     try:
         from paddleocr.ppstructure.predict_system import PredictSystem as PPStructure
-        print("DEBUG: Imported PPStructure from paddleocr.ppstructure.predict_system")
+        print("DEBUG: Imported PPStructure from paddleocr.ppstructure.predict_system (PredictSystem)")
     except Exception as e2:
-        print(f"DEBUG: Failed to import PPStructure from paddleocr.ppstructure.predict_system: {e2}")
+        err_msg2 = f"Failed to import PPStructure from paddleocr.ppstructure.predict_system: {type(e2).__name__}: {e2}"
+        print(f"DEBUG: {err_msg2}")
+        _import_errors.append(err_msg2)
         try:
             # Another potential location in some versions
-            import paddleocr.ppstructure as ppstructure
-            PPStructure = ppstructure.PPStructure
-            print("DEBUG: Imported PPStructure from paddleocr.ppstructure")
+            from paddleocr.ppstructure.ppstructure import PPStructure
+            print("DEBUG: Imported PPStructure from paddleocr.ppstructure.ppstructure")
         except Exception as e3:
-            print(f"DEBUG: Failed to import PPStructure from paddleocr.ppstructure: {e3}")
-            PPStructure = None
+            err_msg3 = f"Failed to import PPStructure from paddleocr.ppstructure.ppstructure: {type(e3).__name__}: {e3}"
+            print(f"DEBUG: {err_msg3}")
+            _import_errors.append(err_msg3)
+            try:
+                import paddleocr.ppstructure as ppstructure
+                if hasattr(ppstructure, 'PPStructure'):
+                    PPStructure = ppstructure.PPStructure
+                    print("DEBUG: Found PPStructure in paddleocr.ppstructure")
+                elif hasattr(ppstructure, 'predict_system') and hasattr(ppstructure.predict_system, 'PredictSystem'):
+                    PPStructure = ppstructure.predict_system.PredictSystem
+                    print("DEBUG: Found PredictSystem in paddleocr.ppstructure.predict_system")
+                elif hasattr(ppstructure, 'predict_system') and hasattr(ppstructure.predict_system, 'PPStructure'):
+                    PPStructure = ppstructure.predict_system.PPStructure
+                    print("DEBUG: Found PPStructure in paddleocr.ppstructure.predict_system")
+                else:
+                    PPStructure = None
+                    print("DEBUG: Could not find PPStructure or PredictSystem in paddleocr.ppstructure")
+            except Exception as e4:
+                err_msg4 = f"Failed to import paddleocr.ppstructure: {type(e4).__name__}: {e4}"
+                print(f"DEBUG: {err_msg4}")
+                _import_errors.append(err_msg4)
+                PPStructure = None
 
 # Fallback for draw_ocr if still None
 if draw_ocr is None:
@@ -740,10 +766,15 @@ class OCRWorker:
                                 if not hasattr(self, '_layout_engine') or self._layout_engine is None:
                                     print(f"[{job_id[:8]}] Initializing PPStructure layout engine...")
                                     try:
-                                        self._layout_engine = PPStructure(show_log=False, lang='ru', layout=True, table=False, ocr=False)
+                                        print(f"[{job_id[:8]}] Attempting to initialize PPStructure with lang='ru'...")
+                                        self._layout_engine = PPStructure(show_log=False, lang='ru')
                                     except Exception as e:
-                                        print(f"[{job_id[:8]}] Error initializing PPStructure: {e}")
-                                        self._layout_engine = None
+                                        print(f"[{job_id[:8]}] Failed with lang='ru', trying default...")
+                                        try:
+                                            self._layout_engine = PPStructure(show_log=False)
+                                        except Exception as e2:
+                                            print(f"[{job_id[:8]}] Error initializing PPStructure: {e2}")
+                                            self._layout_engine = None
                                 
                                 if self._layout_engine:
                                     img_np = np.array(pil_image)
@@ -1081,7 +1112,8 @@ def health_check():
         "status": "ok",
         "PaddleOCR": PaddleOCR is not None,
         "PPStructure": PPStructure is not None,
-        "draw_ocr": draw_ocr is not None
+        "draw_ocr": draw_ocr is not None,
+        "import_errors": _import_errors
     }
 
 
