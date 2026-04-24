@@ -35,10 +35,20 @@ def _summarize_for_log(obj, max_str_len=200):
         return obj
 # Robust import for PaddleOCR, draw_ocr and PPStructure
 try:
-    from paddleocr import PaddleOCR, draw_ocr
+    from paddleocr import PaddleOCR
 except ImportError:
-    PaddleOCR = None
-    draw_ocr = None
+    try:
+        from paddleocr.paddleocr import PaddleOCR
+    except ImportError:
+        PaddleOCR = None
+
+try:
+    from paddleocr import draw_ocr
+except ImportError:
+    try:
+        from paddleocr.tools.infer.utility import draw_ocr
+    except ImportError:
+        draw_ocr = None
 
 try:
     from paddleocr import PPStructure
@@ -50,11 +60,8 @@ except ImportError:
 
 # Fallback for draw_ocr if still None
 if draw_ocr is None:
-    try:
-        from paddleocr.tools.infer.utility import draw_ocr
-    except ImportError:
-        def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
-            return image
+    def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
+        return image
 
 # Provide draw_OCR as an alias for compatibility
 draw_OCR = draw_ocr
@@ -443,16 +450,23 @@ class OCRWorker:
 
     def _load_model(self):
         if self._model is None:
+            print(f"DEBUG: PaddleOCR class availability: {PaddleOCR is not None}")
             if PaddleOCR is None:
-                raise ImportError("PaddleOCR could not be imported. Please check installation.")
+                raise ImportError("PaddleOCR could not be imported. Please check installation and python path.")
             print("Loading PaddleOCR model...")
-            self._model = PaddleOCR(
-                use_angle_cls=True,
-                use_doc_orientation_classify=True,
-                use_doc_unwarping=True,
-                lang='ru'
-            )
-            print("Model loaded.")
+            try:
+                self._model = PaddleOCR(
+                    use_angle_cls=True,
+                    use_doc_orientation_classify=True,
+                    use_doc_unwarping=True,
+                    lang='ru'
+                )
+                print("Model loaded successfully.")
+            except Exception as e:
+                print(f"Error during PaddleOCR initialization: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
         return self._model
 
     def _run(self):
