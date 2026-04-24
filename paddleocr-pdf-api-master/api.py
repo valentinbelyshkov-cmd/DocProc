@@ -709,12 +709,15 @@ class OCRWorker:
                     # === ДЕТЕКЦИЯ И ВЫРЕЗАНИЕ ПЕЧАТЕЙ ===
                     if job.get("detect_seal"):
                         try:
+                            print(f"[{job_id[:8]}] Starting seal detection on page {page_idx + 1}...")
                             from paddleocr import PPStructure
                             if not hasattr(self, '_layout_engine') or self._layout_engine is None:
+                                print(f"[{job_id[:8]}] Initializing PPStructure layout engine...")
                                 self._layout_engine = PPStructure(show_log=False, lang='ru', table=False, ocr=False)
                             
                             img_np = np.array(pil_image)
                             layout_res = self._layout_engine(img_np)
+                            print(f"[{job_id[:8]}] Layout engine returned {len(layout_res)} regions")
                             
                             mask_count = 0
                             seals_dir = job_dir / "seals"
@@ -722,21 +725,29 @@ class OCRWorker:
                             
                             draw = ImageDraw.Draw(pil_image)
                             for i, region in enumerate(layout_res):
-                                if region['type'].lower() == 'seal':
+                                region_type = region.get('type', 'unknown').lower()
+                                print(f"[{job_id[:8]}] Region {i} type: {region_type}")
+                                if region_type == 'seal':
                                     bbox = region['bbox'] # [x1, y1, x2, y2]
                                     # Crop and save seal
                                     seal_crop = pil_image.crop((bbox[0], bbox[1], bbox[2], bbox[3]))
-                                    seal_crop.save(seals_dir / f"page_{page_idx + 1}_seal_{i}.png")
+                                    seal_path = seals_dir / f"page_{page_idx + 1}_seal_{i}.png"
+                                    seal_crop.save(seal_path)
+                                    print(f"[{job_id[:8]}] Found seal at {bbox}, saved to {seal_path}")
                                     
                                     # Mask on original
                                     draw.rectangle([bbox[0], bbox[1], bbox[2], bbox[3]], fill="white")
                                     mask_count += 1
                             
                             if mask_count > 0:
-                                print(f"[{job_id[:8]}] Masked {mask_count} seals on page {page_idx + 1}")
+                                print(f"[{job_id[:8]}] Total masked {mask_count} seals on page {page_idx + 1}")
                                 pil_image.save(tmp_path)
+                            else:
+                                print(f"[{job_id[:8]}] No seals found on page {page_idx + 1}")
                         except Exception as sle:
                             print(f"[{job_id[:8]}] Seal detection failed: {sle}")
+                            import traceback
+                            traceback.print_exc()
                     # ====================================
 
                     try:
