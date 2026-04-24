@@ -23,7 +23,7 @@ ocr = PaddleOCR(
 img_path = "mydoc.pdf"
 
 # Запуск распознавания
-result = ocr.predict(img_path)
+result = ocr.ocr(img_path)
 # Форматирование вывода
 structured_output = []
 for page_idx, lines in enumerate(result):
