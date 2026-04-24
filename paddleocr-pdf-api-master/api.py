@@ -29,9 +29,6 @@ except ImportError:
         try:
             from paddleocr.paddleocr import PaddleOCR
         except ImportError:
-            # If PaddleOCR cannot be imported, we'll let it fail later when used
-            # or we could define a dummy class if needed.
-            # But let's assume paddleocr is installed but maybe in a weird way.
             PaddleOCR = None
 
     # Try alternative import paths for draw_ocr
@@ -39,11 +36,17 @@ except ImportError:
         from paddleocr import draw_ocr
     except ImportError:
         try:
-            from paddleocr.tools.infer.utility import draw_ocr
+            from paddleocr import draw_OCR as draw_ocr
         except ImportError:
-            # Fallback: define a dummy draw_ocr that returns the image unchanged
-            def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
-                return image
+            try:
+                from paddleocr.tools.infer.utility import draw_ocr
+            except ImportError:
+                # Fallback: define a dummy draw_ocr that returns the image unchanged
+                def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
+                    return image
+
+# Provide draw_OCR as an alias to draw_ocr for compatibility
+draw_OCR = draw_ocr
 
 from PIL import Image
 
