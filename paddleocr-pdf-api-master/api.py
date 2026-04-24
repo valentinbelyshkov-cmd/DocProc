@@ -15,7 +15,7 @@ import magic
 import numpy as np
 import pypdfium2 as pdfium
 import uvicorn
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, Form
 from fastapi.responses import FileResponse
 import numpy as np
 
@@ -748,6 +748,8 @@ class OCRWorker:
                             print(f"[{job_id[:8]}] Seal detection failed: {sle}")
                             import traceback
                             traceback.print_exc()
+                    else:
+                        print(f"[{job_id[:8]}] Seal detection not requested for page {page_idx + 1}")
                     # ====================================
 
                     try:
@@ -1040,7 +1042,8 @@ def shutdown():
 
 
 @app.post("/ocr")
-async def submit_job(file: UploadFile = File(...), detect_seal: bool = False):
+async def submit_job(file: UploadFile = File(...), detect_seal: bool = Form(False)):
+    print(f"Received OCR job submission. detect_seal: {detect_seal}")
     suffix = Path(file.filename or "").suffix.lower()
     is_pdf = suffix == ".pdf"
     is_image = suffix in ALLOWED_IMAGE_EXTS
