@@ -583,7 +583,7 @@ class OCRWorker:
 
                         page_markdown = self._extract_text(normalized_pages)
                         page_markdown = convert_html_tables(page_markdown)
-                        page_markdown = strip_html(page_markdown)
+                        # page_markdown = strip_html(page_markdown)
                         
                         structured_data = self._extract_structured(normalized_pages)
 
@@ -607,30 +607,30 @@ class OCRWorker:
                     finally:
                         os.unlink(tmp_path)
 
-                with get_db() as db:
-                    db.execute(
-                        "UPDATE jobs SET status = 'completed', updated_at = ? WHERE id = ?",
-                        (time.time(), job_id),
-                    )
+            with get_db() as db:
+                db.execute(
+                    "UPDATE jobs SET status = 'completed', updated_at = ? WHERE id = ?",
+                    (time.time(), job_id),
+                )
+            
+            # Save full results to files
+            with get_db() as db:
+                pages_data = db.execute(
+                    "SELECT page_num, markdown, result_json FROM pages WHERE job_id = ? ORDER BY page_num",
+                    (job_id,)
+                ).fetchall()
                 
-                # Save full results to files
-                with get_db() as db:
-                    pages_data = db.execute(
-                        "SELECT page_num, markdown, result_json FROM pages WHERE job_id = ? ORDER BY page_num",
-                        (job_id,)
-                    ).fetchall()
-                    
-                full_markdown = ""
-                full_structured = []
-                for p in pages_data:
-                    full_markdown += f"# Страница {p['page_num']}\n\n{p['markdown']}\n\n---\n\n"
-                    if p['result_json']:
-                        full_structured.extend(json.loads(p['result_json']))
-                
-                (job_dir / "result.md").write_text(full_markdown, encoding="utf-8")
-                (job_dir / "result.json").write_text(json.dumps(full_structured, ensure_ascii=False, indent=2), encoding="utf-8")
-                
-                print(f"[{job_id[:8]}] Job completed ({total_pages} pages). Results saved to files.")
+            full_markdown = ""
+            full_structured = []
+            for p in pages_data:
+                full_markdown += f"# Страница {p['page_num']}\n\n{p['markdown']}\n\n---\n\n"
+                if p['result_json']:
+                    full_structured.extend(json.loads(p['result_json']))
+            
+            (job_dir / "result.md").write_text(full_markdown, encoding="utf-8")
+            (job_dir / "result.json").write_text(json.dumps(full_structured, ensure_ascii=False, indent=2), encoding="utf-8")
+            
+            print(f"[{job_id[:8]}] Job completed ({total_pages} pages). Results saved to files.")
 
         except Exception as e:
             import traceback
@@ -650,17 +650,21 @@ class OCRWorker:
             if not page_lines:
                 continue
             for line in page_lines:
-                if isinstance(line, (list, tuple)) and len(line) >= 2:
-                    raw_info = line[1]
-                    if isinstance(raw_info, dict):
-                        text = raw_info.get("text", "")
-                    elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
-                        text = raw_info[0]
-                    else:
-                        text = str(raw_info)
-                    if text:
-                        texts.append(text)
-        return "\n".join(texts)
+                if not line or not isinstance(line, (list, tuple)) or len(line) < 2:
+                    continue
+                
+                raw_info = line[1]
+                text = ""
+                if isinstance(raw_info, dict):
+                    text = raw_info.get("text", "")
+                elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
+                    text = raw_info[0]
+                else:
+                    text = str(raw_info)
+                
+                if text:
+                    texts.append(str(text).strip())
+        return "\n\n".join(texts)
 
     def _extract_structured(self, result):
         structured_output = []
@@ -676,17 +680,20 @@ class OCRWorker:
                     bbox = word_info[0]
                     raw_info = word_info[1]
 
+                    text = ""
+                    confidence = 1.0
                     if isinstance(raw_info, dict):
                         text = raw_info.get("text", "")
                         confidence = raw_info.get("confidence", 0.0)
-                    elif isinstance(raw_info, (list, tuple)) and len(raw_info) == 2:
-                        text, confidence = raw_info
+                    elif isinstance(raw_info, (list, tuple)):
+                        text = raw_info[0] if len(raw_info) >= 1 else ""
+                        confidence = raw_info[1] if len(raw_info) >= 2 else 1.0
                     else:
                         text = str(raw_info)
                         confidence = 1.0
 
                     page_data["blocks"].append({
-                        "text": text,
+                        "text": str(text).strip(),
                         "confidence": round(float(confidence), 4),
                         "bbox": bbox
                     })
