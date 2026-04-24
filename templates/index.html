@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="ru" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PaddleOCR Document Converter</title>
+    <title>Конвертер документов PaddleOCR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -16,10 +16,10 @@
         <div class="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 p-10 rounded-xl shadow-lg">
             <div>
                 <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-                    PaddleOCR Converter
+                    Конвертер PaddleOCR
                 </h2>
                 <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-                    Upload a PDF or image to extract text using PaddleOCR
+                    Загрузите PDF или изображение для извлечения текста с помощью PaddleOCR
                 </p>
             </div>
             
@@ -43,12 +43,12 @@
                             </svg>
                             <div class="flex text-sm text-gray-600 dark:text-gray-400">
                                 <span class="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
-                                    Upload a file
+                                    Загрузить файл
                                 </span>
-                                <p class="pl-1">or drag and drop</p>
+                                <p class="pl-1">или перетащите его сюда</p>
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
-                                PDF, PNG, JPG up to 64MB
+                                PDF, PNG, JPG до 64 МБ
                             </p>
                             <p id="file-name" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mt-2"></p>
                         </div>
@@ -57,7 +57,7 @@
 
                 <div>
                     <button type="submit" id="submit-btn" disabled class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Process Document
+                        Обработать документ
                     </button>
                 </div>
             </form>

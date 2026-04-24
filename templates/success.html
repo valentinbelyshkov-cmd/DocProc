@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="ru" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conversion Complete - PaddleOCR</title>
+    <title>Конвертация завершена - PaddleOCR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -15,44 +15,44 @@
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
             <div class="bg-gradient-to-r from-green-500 to-teal-600 p-6 text-white text-center">
-                <h1 class="text-3xl font-bold">Conversion Complete!</h1>
-                <p class="mt-2 text-green-100">Your document has been processed by PaddleOCR</p>
+                <h1 class="text-3xl font-bold">Конвертация завершена!</h1>
+                <p class="mt-2 text-green-100">Ваш документ был обработан с помощью PaddleOCR</p>
             </div>
             
             <div class="p-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                     <!-- Statistics -->
                     <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
-                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Processing Details</h2>
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Детали обработки</h2>
                         <div class="space-y-3 text-gray-600 dark:text-gray-300">
                             <div class="flex justify-between">
-                                <span>Filename:</span>
+                                <span>Имя файла:</span>
                                 <span class="font-medium text-gray-900 dark:text-white">{{ filename }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span>Processing Time:</span>
-                                <span class="font-medium text-gray-900 dark:text-white">{{ processing_time }} seconds</span>
+                                <span>Время обработки:</span>
+                                <span class="font-medium text-gray-900 dark:text-white">{{ processing_time }} сек.</span>
                             </div>
                             <div class="flex justify-between">
-                                <span>Engine:</span>
+                                <span>Движок:</span>
                                 <span class="font-medium text-gray-900 dark:text-white">PaddleOCR-VL</span>
                             </div>
                         </div>
                         <div class="mt-6 space-y-3">
                             <a href="{{ url_for('download_result', task_id=task_id) }}" class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                                Download Markdown Result
+                                Скачать результат (Markdown)
                             </a>
                             <a href="{{ url_for('new_conversion') }}" class="w-full flex justify-center items-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                Start New Conversion
+                                Начать новую конвертацию
                             </a>
                         </div>
                     </div>
 
                     <!-- Result Preview (Image) -->
                     <div class="border dark:border-gray-600 rounded-lg overflow-hidden flex flex-col">
-                        <h2 class="bg-gray-100 dark:bg-gray-700 p-3 text-center font-medium text-gray-700 dark:text-gray-300 border-b dark:border-gray-600">Result Visualization (Page 1)</h2>
+                        <h2 class="bg-gray-100 dark:bg-gray-700 p-3 text-center font-medium text-gray-700 dark:text-gray-300 border-b dark:border-gray-600">Визуализация результата (Стр. 1)</h2>
                         <div class="bg-white dark:bg-gray-900 flex-grow flex items-center justify-center p-4">
-                            <img src="{{ url_for('get_image', task_id=task_id, page_num=1) }}" alt="OCR Result Visualization" class="max-w-full max-h-[400px] shadow-sm" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x500?text=Visualization+Not+Available';">
+                            <img src="{{ url_for('get_image', task_id=task_id, page_num=1) }}" alt="Визуализация результата OCR" class="max-w-full max-h-[400px] shadow-sm" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x500?text=Визуализация+недоступна';">
                         </div>
                     </div>
                 </div>
