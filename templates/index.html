@@ -44,7 +44,7 @@
             <form class="mt-8 space-y-6" action="/upload" method="POST" enctype="multipart/form-data">
                 <div class="rounded-md shadow-sm -space-y-px">
                     <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12 text-center hover:border-indigo-500 transition-colors cursor-pointer" id="drop-zone">
-                        <input type="file" name="file" id="file-input" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.zip">
+                        <input type="file" name="file" id="file-input" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.zip" multiple>
                         <div class="space-y-2">
                             <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -58,7 +58,7 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                 PDF, PNG, JPG, ZIP до 64 МБ
                             </p>
-
+                            <p id="file-name" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mt-2"></p>
                         </div>
                     </div>
                 </div>
@@ -82,7 +82,11 @@
 
         fileInput.onchange = () => {
             if (fileInput.files.length > 0) {
-                fileName.textContent = fileInput.files[0].name;
+                if (fileInput.files.length === 1) {
+                    fileName.textContent = fileInput.files[0].name;
+                } else {
+                    fileName.textContent = `Выбрано файлов: ${fileInput.files.length}`;
+                }
                 submitBtn.disabled = false;
             }
         };
@@ -101,7 +105,11 @@
             dropZone.classList.remove('border-indigo-500');
             if (e.dataTransfer.files.length > 0) {
                 fileInput.files = e.dataTransfer.files;
-                fileName.textContent = fileInput.files[0].name;
+                if (fileInput.files.length === 1) {
+                    fileName.textContent = fileInput.files[0].name;
+                } else {
+                    fileName.textContent = `Выбрано файлов: ${fileInput.files.length}`;
+                }
                 submitBtn.disabled = false;
             }
         };
