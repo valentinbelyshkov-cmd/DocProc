@@ -587,6 +587,10 @@ class OCRWorker:
                         
                         structured_data = self._extract_structured(normalized_pages)
 
+                        # Save text and json results to files
+                        (job_dir / f"page_{page_idx + 1}.md").write_text(page_markdown, encoding="utf-8")
+                        (job_dir / f"page_{page_idx + 1}.json").write_text(json.dumps(structured_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
                         now = time.time()
                         with get_db() as db:
                             db.execute(
@@ -603,12 +607,30 @@ class OCRWorker:
                     finally:
                         os.unlink(tmp_path)
 
-            with get_db() as db:
-                db.execute(
-                    "UPDATE jobs SET status = 'completed', updated_at = ? WHERE id = ?",
-                    (time.time(), job_id),
-                )
-            print(f"[{job_id[:8]}] Job completed ({total_pages} pages)")
+                with get_db() as db:
+                    db.execute(
+                        "UPDATE jobs SET status = 'completed', updated_at = ? WHERE id = ?",
+                        (time.time(), job_id),
+                    )
+                
+                # Save full results to files
+                with get_db() as db:
+                    pages_data = db.execute(
+                        "SELECT page_num, markdown, result_json FROM pages WHERE job_id = ? ORDER BY page_num",
+                        (job_id,)
+                    ).fetchall()
+                    
+                full_markdown = ""
+                full_structured = []
+                for p in pages_data:
+                    full_markdown += f"# Страница {p['page_num']}\n\n{p['markdown']}\n\n---\n\n"
+                    if p['result_json']:
+                        full_structured.extend(json.loads(p['result_json']))
+                
+                (job_dir / "result.md").write_text(full_markdown, encoding="utf-8")
+                (job_dir / "result.json").write_text(json.dumps(full_structured, ensure_ascii=False, indent=2), encoding="utf-8")
+                
+                print(f"[{job_id[:8]}] Job completed ({total_pages} pages). Results saved to files.")
 
         except Exception as e:
             import traceback

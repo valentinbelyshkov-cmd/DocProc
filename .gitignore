@@ -1,5 +1,13 @@
 .DS_Store
 uploads/
+output/
 __pycache__/
 app.log
 models/
+*.pyc
+.env
+.venv
+venv/
+node_modules/
+.idea/
+.vscode/
