@@ -23,8 +23,10 @@ app = Flask(__name__)
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
+OUTPUT_FOLDER = 'output'
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff', 'webp'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # 64 MB limit
 app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
@@ -33,6 +35,9 @@ PADDLEOCR_API_URL = os.environ.get('PADDLEOCR_API_URL', 'http://paddleocr-api:80
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+if not os.path.exists(OUTPUT_FOLDER):
+    os.makedirs(OUTPUT_FOLDER)
 
 def allowed_file(filename):
     if not filename:
@@ -134,6 +139,32 @@ def task_status(task_id):
 def success(task_id):
     filename = session.get('filename', 'документ')
     processing_time = session.get(f'processing_time_{task_id}', 'Н/Д')
+    
+    # Auto-save results to output folder
+    try:
+        response = requests.get(f"{PADDLEOCR_API_URL}/ocr/{task_id}/result")
+        if response.status_code == 200:
+            result_data = response.json()
+            
+            # Save as JSON
+            json_filename = f"{task_id}.json"
+            with open(os.path.join(app.config['OUTPUT_FOLDER'], json_filename), "w", encoding="utf-8") as f:
+                json.dump(result_data, f, ensure_ascii=False, indent=2)
+            
+            # Save as Markdown
+            md_filename = f"{task_id}.md"
+            pages = result_data.get('pages', [])
+            full_markdown = ""
+            for page in pages:
+                full_markdown += f"# Страница {page['page_num']}\n\n{page['markdown']}\n\n---\n\n"
+            
+            with open(os.path.join(app.config['OUTPUT_FOLDER'], md_filename), "w", encoding="utf-8") as f:
+                f.write(full_markdown)
+                
+            logger.info(f"Results for task {task_id} saved to {app.config['OUTPUT_FOLDER']}")
+    except Exception as e:
+        logger.error(f"Failed to auto-save results for task {task_id}: {e}")
+
     return render_template('success.html', task_id=task_id, filename=filename, processing_time=processing_time)
 
 @app.route('/api/image/<task_id>/<int:page_num>')
