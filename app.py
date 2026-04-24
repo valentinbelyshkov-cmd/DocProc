@@ -191,7 +191,11 @@ def download_result(task_id):
             doc = Document()
             for page in pages:
                 doc.add_heading(f"Страница {page['page_num']}", level=1)
-                doc.add_paragraph(page['markdown'])
+                # Split markdown by newlines and add each non-empty line as a separate paragraph
+                markdown_text = page.get('markdown', '')
+                for line in markdown_text.split('\n'):
+                    if line.strip():
+                        doc.add_paragraph(line.strip())
                 doc.add_page_break()
             
             mem = BytesIO()
