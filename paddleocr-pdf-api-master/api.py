@@ -522,7 +522,7 @@ class OCRWorker:
 
                     try:
                         # Use .ocr() instead of .predict() for better compatibility
-                        result = ocr.ocr(tmp_path, cls=True)
+                        result = ocr.ocr(tmp_path)
                         
                         # Normalize result to list of pages, each page is a list of lines
                         # PaddleOCR.ocr returns [ [[bbox, (text, conf)], ...] ]
