@@ -40,16 +40,16 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        flash('No file part', 'error')
+        flash('Файл не найден', 'error')
         return redirect(url_for('index'))
 
     file = request.files['file']
     if file.filename == '':
-        flash('No selected file', 'error')
+        flash('Файл не выбран', 'error')
         return redirect(url_for('index'))
 
     if not allowed_file(file.filename):
-        flash('Invalid file type.', 'error')
+        flash('Неверный тип файла.', 'error')
         return redirect(url_for('index'))
 
     filename = secure_filename(file.filename)
@@ -68,7 +68,7 @@ def upload_file():
         return redirect(url_for('status', task_id=task_id))
     except Exception as e:
         logger.error(f"Error sending file to PaddleOCR API: {e}")
-        flash(f"Error connecting to OCR backend: {e}", 'error')
+        flash(f"Ошибка подключения к OCR бэкенду: {e}", 'error')
         return redirect(url_for('index'))
 
 @app.route('/status/<task_id>')
@@ -116,7 +116,7 @@ def task_status(task_id):
                 session[f'processing_time_{task_id}'] = round(processing_time, 2)
         
         if status == 'failed':
-            result["error"] = job_data.get('error', 'Unknown error')
+            result["error"] = job_data.get('error', 'Неизвестная ошибка')
             result["redirect"] = url_for('index')
             
         return jsonify(result)
@@ -126,8 +126,8 @@ def task_status(task_id):
 
 @app.route('/success/<task_id>')
 def success(task_id):
-    filename = session.get('filename', 'document')
-    processing_time = session.get(f'processing_time_{task_id}', 'N/A')
+    filename = session.get('filename', 'документ')
+    processing_time = session.get(f'processing_time_{task_id}', 'Н/Д')
     return render_template('success.html', task_id=task_id, filename=filename, processing_time=processing_time)
 
 @app.route('/api/image/<task_id>/<int:page_num>')
@@ -138,7 +138,7 @@ def get_image(task_id, page_num):
         return send_file(response.raw, mimetype='image/png')
     except Exception as e:
         logger.error(f"Error fetching image: {e}")
-        return "Image not found", 404
+        return "Изображение не найдено", 404
 
 @app.route('/download_result/<task_id>')
 def download_result(task_id):
@@ -150,7 +150,7 @@ def download_result(task_id):
         # Extract full markdown
         full_markdown = ""
         for page in result_data.get('pages', []):
-            full_markdown += f"# Page {page['page_num']}\n\n{page['markdown']}\n\n---\n\n"
+            full_markdown += f"# Страница {page['page_num']}\n\n{page['markdown']}\n\n---\n\n"
             
         from io import BytesIO
         mem = BytesIO()
@@ -165,7 +165,7 @@ def download_result(task_id):
         )
     except Exception as e:
         logger.error(f"Error downloading result: {e}")
-        flash(f"Error downloading result: {e}", 'error')
+        flash(f"Ошибка при скачивании результата: {e}", 'error')
         return redirect(url_for('index'))
 
 @app.route('/new_conversion')

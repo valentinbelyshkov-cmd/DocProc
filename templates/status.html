@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="ru" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Processing - PaddleOCR</title>
+    <title>Обработка - PaddleOCR</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 h-screen flex items-center justify-center">
@@ -15,8 +15,8 @@
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </div>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2" id="status-text">Processing...</h2>
-            <p class="text-gray-600 dark:text-gray-400 mb-6" id="status-detail">Sending document to PaddleOCR backend</p>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2" id="status-text">Обработка...</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6" id="status-detail">Отправка документа на бэкенд PaddleOCR</p>
             
             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
                 <div id="progress-bar" class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
@@ -39,7 +39,7 @@
                     if (data.status === 'completed') {
                         window.location.href = data.redirect;
                     } else if (data.status === 'failed') {
-                        alert('Processing failed: ' + data.error);
+                        alert('Ошибка обработки: ' + data.error);
                         window.location.href = '/';
                     } else {
                         // Still processing
@@ -48,7 +48,7 @@
                             progressText.textContent = data.progress + '%';
                         }
                         if (data.total_pages) {
-                            statusDetail.textContent = `Processing page ${data.processed_pages} of ${data.total_pages}`;
+                            statusDetail.textContent = `Обработка страницы ${data.processed_pages} из ${data.total_pages}`;
                         }
                         setTimeout(checkStatus, 2000);
                     }
