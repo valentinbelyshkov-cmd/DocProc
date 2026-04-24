@@ -67,6 +67,14 @@
                         <div class="bg-white dark:bg-gray-900 flex-grow flex items-center justify-center p-4">
                             <img src="{{ url_for('get_image', task_id=task_id, page_num=1) }}" alt="Визуализация результата OCR" class="max-w-full max-h-[400px] shadow-sm" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x500?text=Визуализация+недоступна';">
                         </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-4 border-t dark:border-gray-600">
+                            <div class="flex items-center space-x-3">
+                                <input type="checkbox" id="detect_seal_success" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer" {% if detect_seal_enabled %}checked{% endif %} onclick="return false;">
+                                <label for="detect_seal_success" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                                    Детекция и вырезание печати
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

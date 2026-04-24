@@ -62,7 +62,7 @@ except ImportError:
 # Provide draw_OCR as an alias to draw_ocr for compatibility
 draw_OCR = draw_ocr
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
@@ -329,6 +329,7 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'queued',
                 total_pages INTEGER DEFAULT 0,
                 processed_pages INTEGER DEFAULT 0,
+                detect_seal INTEGER DEFAULT 0,
                 error TEXT,
                 created_at REAL NOT NULL,
                 updated_at REAL NOT NULL
@@ -348,6 +349,12 @@ def init_db():
             db.execute("SELECT result_json FROM pages LIMIT 1")
         except sqlite3.OperationalError:
             db.execute("ALTER TABLE pages ADD COLUMN result_json TEXT")
+
+        # Migration: ensure detect_seal exists
+        try:
+            db.execute("SELECT detect_seal FROM jobs LIMIT 1")
+        except sqlite3.OperationalError:
+            db.execute("ALTER TABLE jobs ADD COLUMN detect_seal INTEGER DEFAULT 0")
 
         now = time.time()
         stale = db.execute("SELECT id FROM jobs WHERE status = 'processing'").fetchall()
@@ -468,7 +475,7 @@ class OCRWorker:
     def _pick_next_job(self):
         with get_db() as db:
             row = db.execute(
-                "SELECT id, filename FROM jobs WHERE status = 'queued' ORDER BY created_at LIMIT 1"
+                "SELECT id, filename, detect_seal FROM jobs WHERE status = 'queued' ORDER BY created_at LIMIT 1"
             ).fetchone()
             if row:
                 now = time.time()
@@ -698,6 +705,31 @@ class OCRWorker:
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                     pil_image.save(tmp.name)
                     tmp_path = tmp.name
+
+                    # === ДЕТЕКЦИЯ И ВЫРЕЗАНИЕ ПЕЧАТЕЙ ===
+                    if job.get("detect_seal"):
+                        try:
+                            from paddleocr import PPStructure
+                            if not hasattr(self, '_layout_engine') or self._layout_engine is None:
+                                self._layout_engine = PPStructure(show_log=False, lang='ru', table=False, ocr=False)
+                            
+                            img_np = np.array(pil_image)
+                            layout_res = self._layout_engine(img_np)
+                            
+                            mask_count = 0
+                            draw = ImageDraw.Draw(pil_image)
+                            for region in layout_res:
+                                if region['type'].lower() == 'seal':
+                                    bbox = region['bbox'] # [x1, y1, x2, y2]
+                                    draw.rectangle([bbox[0], bbox[1], bbox[2], bbox[3]], fill="white")
+                                    mask_count += 1
+                            
+                            if mask_count > 0:
+                                print(f"[{job_id[:8]}] Masked {mask_count} seals on page {page_idx + 1}")
+                                pil_image.save(tmp_path)
+                        except Exception as sle:
+                            print(f"[{job_id[:8]}] Seal detection failed: {sle}")
+                    # ====================================
 
                     try:
                         result = ocr.ocr(tmp_path)
@@ -989,7 +1021,7 @@ def shutdown():
 
 
 @app.post("/ocr")
-async def submit_job(file: UploadFile = File(...)):
+async def submit_job(file: UploadFile = File(...), detect_seal: bool = False):
     suffix = Path(file.filename or "").suffix.lower()
     is_pdf = suffix == ".pdf"
     is_image = suffix in ALLOWED_IMAGE_EXTS
@@ -1016,8 +1048,8 @@ async def submit_job(file: UploadFile = File(...)):
     now = time.time()
     with get_db() as db:
         db.execute(
-            "INSERT INTO jobs (id, filename, status, created_at, updated_at) VALUES (?, ?, 'queued', ?, ?)",
-            (job_id, file.filename, now, now),
+            "INSERT INTO jobs (id, filename, status, detect_seal, created_at, updated_at) VALUES (?, ?, 'queued', ?, ?, ?)",
+            (job_id, file.filename, 1 if detect_seal else 0, now, now),
         )
 
     return {"job_id": job_id, "filename": file.filename, "status": "queued"}
@@ -1034,6 +1066,7 @@ def get_job_status(job_id: str):
         "job_id": job["id"],
         "filename": job["filename"],
         "status": job["status"],
+        "detect_seal": job["detect_seal"],
         "total_pages": job["total_pages"],
         "processed_pages": job["processed_pages"],
         "error": job["error"],

@@ -65,6 +65,7 @@ def upload_file():
         session['tasks'] = []
     
     processed_any = False
+    detect_seal = request.form.get('detect_seal') == 'on'
     
     for file in uploaded_files:
         if not file.filename or not allowed_file(file.filename):
@@ -90,8 +91,9 @@ def upload_file():
                             
                             # Send to OCR API
                             files = {'file': (z_filename, file_content)}
+                            data = {'detect_seal': detect_seal}
                             try:
-                                response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files)
+                                response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files, data=data)
                                 response.raise_for_status()
                                 job_data = response.json()
                                 
@@ -107,7 +109,8 @@ def upload_file():
             # Send file to PaddleOCR API
             try:
                 files = {'file': (filename, file.read(), file.content_type)}
-                response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files)
+                data = {'detect_seal': detect_seal}
+                response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files, data=data)
                 response.raise_for_status()
                 job_data = response.json()
                 
@@ -193,9 +196,15 @@ def success(task_id):
     tasks = session.get('tasks', [])
     filename = next((t['filename'] for t in tasks if t['task_id'] == task_id), 'документ')
     processing_time = session.get(f'processing_time_{task_id}', 'Н/Д')
+    detect_seal_enabled = False
     
     # Auto-save results to output folder
     try:
+        response = requests.get(f"{PADDLEOCR_API_URL}/ocr/{task_id}")
+        if response.status_code == 200:
+            job_data = response.json()
+            detect_seal_enabled = bool(job_data.get('detect_seal', 0))
+
         response = requests.get(f"{PADDLEOCR_API_URL}/ocr/{task_id}/result")
         if response.status_code == 200:
             result_data = response.json()
@@ -219,7 +228,7 @@ def success(task_id):
     except Exception as e:
         logger.error(f"Failed to auto-save results for task {task_id}: {e}")
 
-    return render_template('success.html', task_id=task_id, filename=filename, processing_time=processing_time)
+    return render_template('success.html', task_id=task_id, filename=filename, processing_time=processing_time, detect_seal_enabled=detect_seal_enabled)
 
 @app.route('/api/image/<task_id>/<int:page_num>')
 def get_image(task_id, page_num):
