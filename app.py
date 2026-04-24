@@ -91,7 +91,7 @@ def upload_file():
                             
                             # Send to OCR API
                             files = {'file': (z_filename, file_content)}
-                            data = {'detect_seal': detect_seal}
+                            data = {'detect_seal': 'true' if detect_seal else 'false'}
                             try:
                                 response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files, data=data)
                                 response.raise_for_status()
@@ -109,7 +109,7 @@ def upload_file():
             # Send file to PaddleOCR API
             try:
                 files = {'file': (filename, file.read(), file.content_type)}
-                data = {'detect_seal': detect_seal}
+                data = {'detect_seal': 'true' if detect_seal else 'false'}
                 response = requests.post(f"{PADDLEOCR_API_URL}/ocr", files=files, data=data)
                 response.raise_for_status()
                 job_data = response.json()

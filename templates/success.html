@@ -82,10 +82,15 @@
         document.addEventListener('DOMContentLoaded', function() {
             const taskId = "{{ task_id }}";
             const container = document.getElementById('seals-container');
+            console.log('Loading seals for task:', taskId);
             
             fetch(`/api/seals/${taskId}`)
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Seals API response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Seals data received:', data);
                     if (data.seals && data.seals.length > 0) {
                         container.innerHTML = '';
                         data.seals.forEach(filename => {
@@ -96,6 +101,8 @@
                             img.src = `/api/seal/${taskId}/${filename}`;
                             img.alt = 'Печать';
                             img.className = 'max-h-24 object-contain';
+                            img.onload = () => console.log('Seal image loaded:', filename);
+                            img.onerror = () => console.error('Failed to load seal image:', filename);
                             
                             imgWrapper.appendChild(img);
                             container.appendChild(imgWrapper);
