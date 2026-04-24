@@ -14,10 +14,7 @@ from colorama import Fore, Style
 colorama.init(autoreset=True)
 
 from app import (
-    app, allowed_file, secure_clean_filename, cleanup_old_files,
-    check_dependencies, check_dependency, sanitize_text, enhance_image,
-    process_image, fix_common_ocr_errors, save_as_markdown, save_as_html,
-    TASK_STATUS, TASK_RESULTS
+    app, allowed_file
 )
 
 # Custom test result class for colored output
