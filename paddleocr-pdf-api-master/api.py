@@ -671,25 +671,56 @@ class OCRWorker:
                 
                 text = ""
                 # Case 1: [bbox, (text, conf)] - PaddleOCR standard
-                if isinstance(line, (list, tuple)) and len(line) >= 2 and isinstance(line[0], list):
+                if isinstance(line, (list, tuple)) and len(line) >= 2:
                     raw_info = line[1]
                     if isinstance(raw_info, dict):
                         text = raw_info.get("text", "")
                     elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
                         text = raw_info[0]
-                    # If it's not a dict, list, or tuple, we check if it's already a string
-                    elif isinstance(raw_info, str):
+                    else:
                         text = raw_info
-                # Case 2: (text, conf)
-                elif isinstance(line, (list, tuple)) and len(line) >= 1 and isinstance(line[0], str):
+                # Case 2: (text, conf) or just text
+                elif isinstance(line, (list, tuple)) and len(line) >= 1:
                     text = line[0]
-                # Case 3: just text
                 elif isinstance(line, str):
                     text = line
+                else:
+                    text = line
+
+                # Handle numpy character arrays or other non-standard string types
+                if hasattr(text, 'item') and not isinstance(text, (list, dict, tuple, np.ndarray)):
+                    try:
+                        text = text.item()
+                    except:
+                        pass
                 
-                # Only add if text is actually a string and not some technical representation
+                if isinstance(text, np.ndarray):
+                    if text.dtype.kind in ('U', 'S'): # Unicode or String
+                        try:
+                            text = "".join(text.flatten().astype(str).tolist())
+                        except:
+                            text = ""
+                    else:
+                        text = "" # Ignore non-textual ndarrays
+
+                if isinstance(text, bytes):
+                    try:
+                        text = text.decode('utf-8', errors='ignore')
+                    except:
+                        text = ""
+                
+                # Convert to string and check if it's "garbage" technical info
+                if text is not None and not isinstance(text, (str, bytes, np.ndarray, list, dict, tuple)):
+                    text = str(text)
+
                 if isinstance(text, str) and text.strip():
-                    texts.append(text.strip())
+                    text_stripped = text.strip()
+                    # Final safety check against technical strings
+                    if "shape=" in text_stripped and "dtype=" in text_stripped:
+                        continue
+                    if "<NDARRAY" in text_stripped:
+                        continue
+                    texts.append(text_stripped)
         return "\n\n".join(texts)
 
     def _extract_structured(self, result, page_num=None):
@@ -725,12 +756,42 @@ class OCRWorker:
                     elif isinstance(raw_info, str):
                         text = raw_info
                         confidence = 1.0
+                    else:
+                        text = raw_info
 
-                    # Ensure text is string and confidence is float
+                    # Handle numpy types for text
+                    if hasattr(text, 'item') and not isinstance(text, (list, dict, tuple, np.ndarray)):
+                        try: text = text.item()
+                        except: pass
+                    if isinstance(text, np.ndarray) and text.dtype.kind in ('U', 'S'):
+                        try: text = "".join(text.flatten().astype(str).tolist())
+                        except: text = ""
+                    if isinstance(text, bytes):
+                        try: text = text.decode('utf-8', errors='ignore')
+                        except: text = ""
+                    
+                    if text is not None and not isinstance(text, (str, bytes, np.ndarray, list, dict, tuple)):
+                        text = str(text)
+
+                    # Ensure confidence is a float
+                    try:
+                        if hasattr(confidence, 'item'):
+                            confidence = confidence.item()
+                        confidence = float(confidence)
+                    except:
+                        confidence = 0.0
+
+                    # Ensure text is string and not technical metadata
                     if isinstance(text, str) and text.strip():
+                        text_stripped = text.strip()
+                        if "shape=" in text_stripped and "dtype=" in text_stripped:
+                            continue
+                        if "<NDARRAY" in text_stripped:
+                            continue
+                        
                         page_data["blocks"].append({
-                            "text": text.strip(),
-                            "confidence": round(float(confidence), 4) if not isinstance(confidence, str) else 0.0,
+                            "text": text_stripped,
+                            "confidence": round(float(confidence), 4),
                             "bbox": bbox
                         })
             structured_output.append(page_data)
