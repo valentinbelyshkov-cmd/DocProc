@@ -51,12 +51,25 @@ except ImportError:
         draw_ocr = None
 
 try:
+    import paddleocr
+    print(f"DEBUG: paddleocr version: {getattr(paddleocr, '__version__', 'unknown')}")
     from paddleocr import PPStructure
-except ImportError:
+    print("DEBUG: Imported PPStructure from paddleocr")
+except Exception as e:
+    print(f"DEBUG: Failed to import PPStructure from paddleocr: {e}")
     try:
         from paddleocr.ppstructure.predict_system import PredictSystem as PPStructure
-    except ImportError:
-        PPStructure = None
+        print("DEBUG: Imported PPStructure from paddleocr.ppstructure.predict_system")
+    except Exception as e2:
+        print(f"DEBUG: Failed to import PPStructure from paddleocr.ppstructure.predict_system: {e2}")
+        try:
+            # Another potential location in some versions
+            import paddleocr.ppstructure as ppstructure
+            PPStructure = ppstructure.PPStructure
+            print("DEBUG: Imported PPStructure from paddleocr.ppstructure")
+        except Exception as e3:
+            print(f"DEBUG: Failed to import PPStructure from paddleocr.ppstructure: {e3}")
+            PPStructure = None
 
 # Fallback for draw_ocr if still None
 if draw_ocr is None:
