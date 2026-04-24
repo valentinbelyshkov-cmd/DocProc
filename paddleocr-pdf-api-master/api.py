@@ -717,10 +717,18 @@ class OCRWorker:
                             layout_res = self._layout_engine(img_np)
                             
                             mask_count = 0
+                            seals_dir = job_dir / "seals"
+                            seals_dir.mkdir(exist_ok=True)
+                            
                             draw = ImageDraw.Draw(pil_image)
-                            for region in layout_res:
+                            for i, region in enumerate(layout_res):
                                 if region['type'].lower() == 'seal':
                                     bbox = region['bbox'] # [x1, y1, x2, y2]
+                                    # Crop and save seal
+                                    seal_crop = pil_image.crop((bbox[0], bbox[1], bbox[2], bbox[3]))
+                                    seal_crop.save(seals_dir / f"page_{page_idx + 1}_seal_{i}.png")
+                                    
+                                    # Mask on original
                                     draw.rectangle([bbox[0], bbox[1], bbox[2], bbox[3]], fill="white")
                                     mask_count += 1
                             
@@ -1082,6 +1090,28 @@ def get_job_image(job_id: str, page_num: int):
     if not img_path.exists():
         raise HTTPException(404, "Image not found or not yet processed")
     return FileResponse(str(img_path))
+
+
+@app.get("/ocr/{job_id}/seals")
+def list_job_seals(job_id: str):
+    job_dir = Path(UPLOAD_DIR) / job_id
+    seals_dir = job_dir / "seals"
+    if not seals_dir.exists():
+        return {"seals": []}
+    
+    seals = []
+    for f in sorted(seals_dir.glob("*.png")):
+        seals.append(f.name)
+    return {"seals": seals}
+
+
+@app.get("/ocr/{job_id}/seals/{filename}")
+def get_seal_image(job_id: str, filename: str):
+    job_dir = Path(UPLOAD_DIR) / job_id
+    seal_path = job_dir / "seals" / filename
+    if not seal_path.exists():
+        raise HTTPException(404, "Seal not found")
+    return FileResponse(str(seal_path))
 
 
 @app.get("/ocr/{job_id}/pages/{page_num}")

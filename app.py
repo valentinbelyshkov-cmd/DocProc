@@ -240,6 +240,26 @@ def get_image(task_id, page_num):
         logger.error(f"Error fetching image: {e}")
         return "Изображение не найдено", 404
 
+@app.route('/api/seals/<task_id>')
+def list_seals(task_id):
+    try:
+        response = requests.get(f"{PADDLEOCR_API_URL}/ocr/{task_id}/seals")
+        response.raise_for_status()
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error listing seals: {e}")
+        return jsonify({"seals": []})
+
+@app.route('/api/seal/<task_id>/<filename>')
+def get_seal(task_id, filename):
+    try:
+        response = requests.get(f"{PADDLEOCR_API_URL}/ocr/{task_id}/seals/{filename}", stream=True)
+        response.raise_for_status()
+        return send_file(response.raw, mimetype='image/png')
+    except Exception as e:
+        logger.error(f"Error fetching seal: {e}")
+        return "Печать не найдена", 404
+
 @app.route('/download_result/<task_id>')
 def download_result(task_id):
     fmt = request.args.get('format', 'md').lower()
