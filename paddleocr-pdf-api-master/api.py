@@ -391,11 +391,6 @@ def convert_html_tables(text: str) -> str:
     return _TABLE_RE.sub(lambda m: "\n\n" + _table_to_markdown(m.group(1)) + "\n\n", text)
 
 
-def strip_html(text: str) -> str:
-    clean = re.sub(r"<[^>]+>", "", text)
-    return clean
-
-
 def strip_image_tags(text: str) -> str:
     return re.sub(r"!\[.*?\]\(.*?\)\n*", "", text)
 
@@ -583,9 +578,8 @@ class OCRWorker:
 
                         page_markdown = self._extract_text(normalized_pages)
                         page_markdown = convert_html_tables(page_markdown)
-                        # page_markdown = strip_html(page_markdown)
                         
-                        structured_data = self._extract_structured(normalized_pages)
+                        structured_data = self._extract_structured(normalized_pages, page_num=page_idx + 1)
 
                         # Save text and json results to files
                         (job_dir / f"page_{page_idx + 1}.md").write_text(page_markdown, encoding="utf-8")
@@ -646,33 +640,49 @@ class OCRWorker:
         if not result:
             return ""
         
+        # PaddleOCR result is usually a list of pages, each page is a list of lines
+        if isinstance(result, list) and len(result) > 0:
+            if not isinstance(result[0], list):
+                result = [result]
+
         for page_lines in result:
             if not page_lines:
                 continue
             for line in page_lines:
-                if not line or not isinstance(line, (list, tuple)) or len(line) < 2:
+                if not line:
                     continue
                 
-                raw_info = line[1]
                 text = ""
-                if isinstance(raw_info, dict):
-                    text = raw_info.get("text", "")
-                elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
-                    text = raw_info[0]
+                # Case 1: [bbox, (text, conf)] - PaddleOCR standard
+                if isinstance(line, (list, tuple)) and len(line) >= 2 and isinstance(line[0], list):
+                    raw_info = line[1]
+                    if isinstance(raw_info, dict):
+                        text = raw_info.get("text", "")
+                    elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
+                        text = raw_info[0]
+                    else:
+                        text = str(raw_info)
+                # Case 2: (text, conf)
+                elif isinstance(line, (list, tuple)) and len(line) >= 1 and isinstance(line[0], str):
+                    text = line[0]
+                # Case 3: just text
+                elif isinstance(line, str):
+                    text = line
                 else:
-                    text = str(raw_info)
+                    text = str(line)
                 
                 if text:
                     texts.append(str(text).strip())
         return "\n\n".join(texts)
 
-    def _extract_structured(self, result):
+    def _extract_structured(self, result, page_num=None):
         structured_output = []
         if not result:
             return structured_output
             
         for page_idx, lines in enumerate(result):
-            page_data = {"page": page_idx + 1, "blocks": []}
+            current_page_num = page_num if page_num is not None else page_idx + 1
+            page_data = {"page": current_page_num, "blocks": []}
             if lines:
                 for word_info in lines:
                     if not isinstance(word_info, (list, tuple)) or len(word_info) < 2:
