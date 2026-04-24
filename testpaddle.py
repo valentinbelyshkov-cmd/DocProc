@@ -1,4 +1,13 @@
-from paddleocr import PaddleOCR
+try:
+    from paddleocr import PaddleOCR
+except ImportError:
+    try:
+        from paddleocr.paddleocr import PaddleOCR
+    except ImportError:
+        print("Error: Could not import PaddleOCR. Please install paddleocr package.")
+        import sys
+        sys.exit(1)
+
 import cv2
 import json
 

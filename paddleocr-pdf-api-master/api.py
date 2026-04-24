@@ -17,7 +17,34 @@ import pypdfium2 as pdfium
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
-from paddleocr import PaddleOCR, draw_ocr
+
+# Robust import for PaddleOCR and draw_ocr
+try:
+    from paddleocr import PaddleOCR, draw_ocr
+except ImportError:
+    # Try alternative import paths for PaddleOCR
+    try:
+        from paddleocr import PaddleOCR
+    except ImportError:
+        try:
+            from paddleocr.paddleocr import PaddleOCR
+        except ImportError:
+            # If PaddleOCR cannot be imported, we'll let it fail later when used
+            # or we could define a dummy class if needed.
+            # But let's assume paddleocr is installed but maybe in a weird way.
+            PaddleOCR = None
+
+    # Try alternative import paths for draw_ocr
+    try:
+        from paddleocr import draw_ocr
+    except ImportError:
+        try:
+            from paddleocr.tools.infer.utility import draw_ocr
+        except ImportError:
+            # Fallback: define a dummy draw_ocr that returns the image unchanged
+            def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
+                return image
+
 from PIL import Image
 
 
@@ -394,6 +421,8 @@ class OCRWorker:
 
     def _load_model(self):
         if self._model is None:
+            if PaddleOCR is None:
+                raise ImportError("PaddleOCR could not be imported. Please check installation.")
             print("Loading PaddleOCR model...")
             self._model = PaddleOCR(
                 use_angle_cls=True,
@@ -405,7 +434,12 @@ class OCRWorker:
         return self._model
 
     def _run(self):
-        ocr = self._load_model()
+        try:
+            ocr = self._load_model()
+        except Exception as e:
+            print(f"Failed to load OCR model: {e}")
+            return
+
         while not self._stop.is_set():
             job = self._pick_next_job()
             if job is None:
@@ -479,12 +513,6 @@ class OCRWorker:
 
                     try:
                         result = ocr.predict(tmp_path)
-                        
-                        # result for a single image is usually [lines]
-                        # if result and isinstance(result[0], list):
-                        #    lines = result[0]
-                        # else:
-                        #    lines = result
                         
                         # Normalize result to list of pages, each page is a list of lines
                         # PaddleOCR.ocr returns [ [[bbox, (text, conf)], ...] ]
