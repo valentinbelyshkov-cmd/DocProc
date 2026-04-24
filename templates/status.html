@@ -39,8 +39,25 @@
                     if (data.status === 'completed') {
                         window.location.href = data.redirect;
                     } else if (data.status === 'failed') {
-                        alert('Ошибка обработки: ' + data.error);
-                        window.location.href = '/';
+                        statusText.textContent = 'Ошибка';
+                        statusText.classList.remove('text-gray-900', 'dark:text-white');
+                        statusText.classList.add('text-red-600', 'dark:text-red-400');
+                        statusDetail.textContent = data.error || 'Неизвестная ошибка при обработке';
+                        
+                        const iconContainer = statusText.previousElementSibling;
+                        iconContainer.classList.remove('bg-indigo-100', 'dark:bg-indigo-900/30');
+                        iconContainer.classList.add('bg-red-100', 'dark:bg-red-900/30');
+                        iconContainer.innerHTML = `
+                            <svg class="h-8 w-8 text-red-600 dark:text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 15.667c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        `;
+
+                        const btn = document.createElement('a');
+                        btn.href = '/';
+                        btn.className = 'mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500';
+                        btn.textContent = 'Вернуться назад';
+                        statusDetail.parentNode.appendChild(btn);
                     } else {
                         // Still processing
                         if (data.progress !== undefined) {

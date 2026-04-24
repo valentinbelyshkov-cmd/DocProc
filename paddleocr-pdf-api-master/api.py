@@ -521,19 +521,27 @@ class OCRWorker:
                     tmp_path = tmp.name
 
                     try:
-                        result = ocr.predict(tmp_path)
+                        # Use .ocr() instead of .predict() for better compatibility
+                        result = ocr.ocr(tmp_path, cls=True)
                         
                         # Normalize result to list of pages, each page is a list of lines
                         # PaddleOCR.ocr returns [ [[bbox, (text, conf)], ...] ]
-                        # PaddleOCR.predict might return the same or slightly different
+                        # If no text is found, it can return [None] or [[]]
                         
                         normalized_pages = []
                         if result:
-                            # Check if it's already a list of pages
-                            if isinstance(result[0], list) and len(result[0]) > 0 and isinstance(result[0][0], list):
+                            # Robust check for list of pages vs list of lines
+                            # result[0] is the first page's content
+                            # If result[0][0] is a list of length 2, it's likely [bbox, (text, conf)], so it's a page
+                            if (isinstance(result[0], list) and len(result[0]) > 0 and 
+                                isinstance(result[0][0], list) and len(result[0][0]) == 2):
                                 normalized_pages = result
                             else:
+                                # It's a single page result (list of lines)
                                 normalized_pages = [result]
+
+                        if not normalized_pages or (len(normalized_pages) == 1 and not normalized_pages[0]):
+                             print(f"[{job_id[:8]}] Warning: No text found on page {page_idx + 1}")
 
                         # Visualization logic
                         try:
