@@ -329,6 +329,12 @@ def init_db():
                 UNIQUE(job_id, page_num)
             );
         """)
+        # Migration: ensure result_json exists
+        try:
+            db.execute("SELECT result_json FROM pages LIMIT 1")
+        except sqlite3.OperationalError:
+            db.execute("ALTER TABLE pages ADD COLUMN result_json TEXT")
+
         now = time.time()
         stale = db.execute("SELECT id FROM jobs WHERE status = 'processing'").fetchall()
         for row in stale:
