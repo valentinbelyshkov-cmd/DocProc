@@ -39,9 +39,17 @@
                             </div>
                         </div>
                         <div class="mt-6 space-y-3">
-                            <a href="{{ url_for('download_result', task_id=task_id) }}" class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                                Скачать результат (Markdown)
-                            </a>
+                            <div class="grid grid-cols-1 gap-2">
+                                <a href="{{ url_for('download_result', task_id=task_id, format='docx') }}" class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                                    Скачать Word (.docx)
+                                </a>
+                                <a href="{{ url_for('download_result', task_id=task_id, format='md') }}" class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                                    Скачать Markdown (.md)
+                                </a>
+                                <a href="{{ url_for('download_result', task_id=task_id, format='xlsx') }}" class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                                    Скачать Excel (.xlsx)
+                                </a>
+                            </div>
                             <a href="{{ url_for('new_conversion') }}" class="w-full flex justify-center items-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                                 Начать новую конвертацию
                             </a>
