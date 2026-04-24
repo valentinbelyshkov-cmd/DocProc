@@ -10,12 +10,14 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
+import json
 import magic
+import numpy as np
 import pypdfium2 as pdfium
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
-from paddleocr import PaddleOCR
+from paddleocr import PaddleOCR, draw_ocr
 from PIL import Image
 
 
@@ -292,6 +294,7 @@ def init_db():
                 job_id TEXT NOT NULL REFERENCES jobs(id),
                 page_num INTEGER NOT NULL,
                 markdown TEXT NOT NULL,
+                result_json TEXT,
                 created_at REAL NOT NULL,
                 UNIQUE(job_id, page_num)
             );
@@ -474,34 +477,81 @@ class OCRWorker:
                     pil_image.save(tmp.name)
                     tmp_path = tmp.name
 
-                try:
-                    result = ocr.predict(tmp_path)
-
-                    # Visualization logic
                     try:
-                        vis_dir = job_dir / "visualized"
-                        vis_dir.mkdir(exist_ok=True)
-                        vis_path = vis_dir / f"page_{page_idx + 1}.png"
-                        # For PaddleOCR, we save the rendered page image.
-                        # In the future, draw_ocr can be used for bounding boxes.
-                        pil_image.save(str(vis_path))
-                    except Exception as ve:
-                        print(f"[{job_id[:8]}] Visualization failed for page {page_idx + 1}: {ve}")
+                        result = ocr.predict(tmp_path)
+                        
+                        # result for a single image is usually [lines]
+                        # if result and isinstance(result[0], list):
+                        #    lines = result[0]
+                        # else:
+                        #    lines = result
+                        
+                        # Normalize result to list of pages, each page is a list of lines
+                        # PaddleOCR.ocr returns [ [[bbox, (text, conf)], ...] ]
+                        # PaddleOCR.predict might return the same or slightly different
+                        
+                        normalized_pages = []
+                        if result:
+                            # Check if it's already a list of pages
+                            if isinstance(result[0], list) and len(result[0]) > 0 and isinstance(result[0][0], list):
+                                normalized_pages = result
+                            else:
+                                normalized_pages = [result]
 
-                    page_markdown = self._extract_text(result)
-                    page_markdown = convert_html_tables(page_markdown)
-                    page_markdown = strip_html(page_markdown)
+                        # Visualization logic
+                        try:
+                            vis_dir = job_dir / "visualized"
+                            vis_dir.mkdir(exist_ok=True)
+                            vis_path = vis_dir / f"page_{page_idx + 1}.png"
+                            
+                            if normalized_pages and normalized_pages[0]:
+                                boxes = []
+                                texts = []
+                                scores = []
+                                for line in normalized_pages[0]:
+                                    if len(line) >= 2:
+                                        boxes.append(line[0])
+                                        raw_info = line[1]
+                                        if isinstance(raw_info, dict):
+                                            texts.append(raw_info.get("text", ""))
+                                            scores.append(raw_info.get("confidence", 1.0))
+                                        elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
+                                            texts.append(raw_info[0])
+                                            scores.append(raw_info[1] if len(raw_info) > 1 else 1.0)
+                                        else:
+                                            texts.append(str(raw_info))
+                                            scores.append(1.0)
+                                
+                                # Use draw_ocr for visualization
+                                font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+                                if not os.path.exists(font_path):
+                                    font_path = None
+                                
+                                im_show = draw_ocr(np.array(pil_image), boxes, texts, scores, font_path=font_path)
+                                im_show = Image.fromarray(im_show)
+                                im_show.save(str(vis_path))
+                            else:
+                                pil_image.save(str(vis_path))
+                        except Exception as ve:
+                            print(f"[{job_id[:8]}] Visualization failed for page {page_idx + 1}: {ve}")
+                            pil_image.save(str(vis_path))
 
-                    now = time.time()
-                    with get_db() as db:
-                        db.execute(
-                            "INSERT INTO pages (job_id, page_num, markdown, created_at) VALUES (?, ?, ?, ?)",
-                            (job_id, page_idx + 1, page_markdown, now),
-                        )
-                        db.execute(
-                            "UPDATE jobs SET processed_pages = ?, updated_at = ? WHERE id = ?",
-                            (page_idx + 1, now, job_id),
-                        )
+                        page_markdown = self._extract_text(normalized_pages)
+                        page_markdown = convert_html_tables(page_markdown)
+                        page_markdown = strip_html(page_markdown)
+                        
+                        structured_data = self._extract_structured(normalized_pages)
+
+                        now = time.time()
+                        with get_db() as db:
+                            db.execute(
+                                "INSERT INTO pages (job_id, page_num, markdown, result_json, created_at) VALUES (?, ?, ?, ?, ?)",
+                                (job_id, page_idx + 1, page_markdown, json.dumps(structured_data, ensure_ascii=False), now),
+                            )
+                            db.execute(
+                                "UPDATE jobs SET processed_pages = ?, updated_at = ? WHERE id = ?",
+                                (page_idx + 1, now, job_id),
+                            )
 
                     print(f"[{job_id[:8]}] Page {page_idx + 1}/{total_pages} done")
 
@@ -526,7 +576,6 @@ class OCRWorker:
 
     def _extract_text(self, result):
         texts = []
-        # result is a list of pages, each page is a list of lines
         if not result:
             return ""
         
@@ -534,7 +583,6 @@ class OCRWorker:
             if not page_lines:
                 continue
             for line in page_lines:
-                # line is usually [bbox, (text, confidence)] or a dict in some versions
                 if isinstance(line, (list, tuple)) and len(line) >= 2:
                     raw_info = line[1]
                     if isinstance(raw_info, dict):
@@ -545,11 +593,38 @@ class OCRWorker:
                         text = str(raw_info)
                     if text:
                         texts.append(text)
-                elif isinstance(line, dict):
-                    text = line.get("text", "")
-                    if text:
-                        texts.append(text)
         return "\n".join(texts)
+
+    def _extract_structured(self, result):
+        structured_output = []
+        if not result:
+            return structured_output
+            
+        for page_idx, lines in enumerate(result):
+            page_data = {"page": page_idx + 1, "blocks": []}
+            if lines:
+                for word_info in lines:
+                    if not isinstance(word_info, (list, tuple)) or len(word_info) < 2:
+                        continue
+                    bbox = word_info[0]
+                    raw_info = word_info[1]
+
+                    if isinstance(raw_info, dict):
+                        text = raw_info.get("text", "")
+                        confidence = raw_info.get("confidence", 0.0)
+                    elif isinstance(raw_info, (list, tuple)) and len(raw_info) == 2:
+                        text, confidence = raw_info
+                    else:
+                        text = str(raw_info)
+                        confidence = 1.0
+
+                    page_data["blocks"].append({
+                        "text": text,
+                        "confidence": round(float(confidence), 4),
+                        "bbox": bbox
+                    })
+            structured_output.append(page_data)
+        return structured_output
 
 
 worker = OCRWorker()
@@ -665,7 +740,7 @@ def get_full_result(job_id: str):
             raise HTTPException(404, "Job not found")
 
         pages = db.execute(
-            "SELECT page_num, markdown FROM pages WHERE job_id = ? ORDER BY page_num",
+            "SELECT page_num, markdown, result_json FROM pages WHERE job_id = ? ORDER BY page_num",
             (job_id,),
         ).fetchall()
 
@@ -675,7 +750,13 @@ def get_full_result(job_id: str):
         "status": job["status"],
         "total_pages": job["total_pages"],
         "processed_pages": job["processed_pages"],
-        "pages": [{"page_num": p["page_num"], "markdown": p["markdown"]} for p in pages],
+        "pages": [
+            {
+                "page_num": p["page_num"],
+                "markdown": p["markdown"],
+                "result_json": json.loads(p["result_json"]) if p["result_json"] else None
+            } for p in pages
+        ],
     }
 
 

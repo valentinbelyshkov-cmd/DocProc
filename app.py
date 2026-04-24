@@ -3,6 +3,10 @@ import time
 import logging
 import requests
 import uuid
+import json
+import pandas as pd
+from io import BytesIO
+from docx import Document
 from flask import Flask, request, render_template, send_file, flash, redirect, url_for, session, jsonify
 from werkzeug.utils import secure_filename
 from datetime import timedelta
@@ -31,6 +35,8 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 def allowed_file(filename):
+    if not filename:
+        return False
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/')
@@ -142,27 +148,79 @@ def get_image(task_id, page_num):
 
 @app.route('/download_result/<task_id>')
 def download_result(task_id):
+    fmt = request.args.get('format', 'md').lower()
     try:
         response = requests.get(f"{PADDLEOCR_API_URL}/ocr/{task_id}/result")
         response.raise_for_status()
         result_data = response.json()
         
-        # Extract full markdown
-        full_markdown = ""
-        for page in result_data.get('pages', []):
-            full_markdown += f"# Страница {page['page_num']}\n\n{page['markdown']}\n\n---\n\n"
-            
-        from io import BytesIO
-        mem = BytesIO()
-        mem.write(full_markdown.encode('utf-8'))
-        mem.seek(0)
+        pages = result_data.get('pages', [])
         
-        return send_file(
-            mem,
-            mimetype='text/markdown',
-            as_attachment=True,
-            download_name=f"ocr_result_{task_id}.md"
-        )
+        if fmt == 'docx':
+            doc = Document()
+            for page in pages:
+                doc.add_heading(f"Страница {page['page_num']}", level=1)
+                doc.add_paragraph(page['markdown'])
+                doc.add_page_break()
+            
+            mem = BytesIO()
+            doc.save(mem)
+            mem.seek(0)
+            return send_file(
+                mem,
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                as_attachment=True,
+                download_name=f"ocr_result_{task_id}.docx"
+            )
+        
+        elif fmt == 'xlsx':
+            rows = []
+            for page in pages:
+                if 'result_json' in page and page['result_json']:
+                    # result_json is a list of pages
+                    for p_data in page['result_json']:
+                        for block in p_data.get('blocks', []):
+                            rows.append({
+                                'Страница': page['page_num'],
+                                'Текст': block.get('text', ''),
+                                'Уверенность': block.get('confidence', 0)
+                            })
+                else:
+                    # Fallback to markdown if result_json is missing
+                    rows.append({
+                        'Страница': page['page_num'],
+                        'Текст': page['markdown'],
+                        'Уверенность': 1.0
+                    })
+            
+            df = pd.DataFrame(rows)
+            mem = BytesIO()
+            with pd.ExcelWriter(mem, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='OCR Result')
+            mem.seek(0)
+            return send_file(
+                mem,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=f"ocr_result_{task_id}.xlsx"
+            )
+            
+        else: # Default to MD
+            # Extract full markdown
+            full_markdown = ""
+            for page in pages:
+                full_markdown += f"# Страница {page['page_num']}\n\n{page['markdown']}\n\n---\n\n"
+                
+            mem = BytesIO()
+            mem.write(full_markdown.encode('utf-8'))
+            mem.seek(0)
+            
+            return send_file(
+                mem,
+                mimetype='text/markdown',
+                as_attachment=True,
+                download_name=f"ocr_result_{task_id}.md"
+            )
     except Exception as e:
         logger.error(f"Error downloading result: {e}")
         flash(f"Ошибка при скачивании результата: {e}", 'error')
