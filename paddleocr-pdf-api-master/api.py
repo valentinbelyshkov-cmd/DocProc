@@ -519,6 +519,16 @@ class OCRWorker:
                         # Use .ocr() instead of .predict() for better compatibility
                         result = ocr.ocr(tmp_path)
                         
+                        # Logging the result structure for debugging
+                        try:
+                            # Print a truncated version of the result structure to console
+                            result_str = str(result)
+                            if len(result_str) > 1000:
+                                result_str = result_str[:1000] + "..."
+                            print(f"[{job_id[:8]}] PaddleOCR result structure: {result_str}")
+                        except Exception as le:
+                            print(f"[{job_id[:8]}] Logging result failed: {le}")
+                        
                         # Normalize result to list of pages, each page is a list of lines
                         # PaddleOCR.ocr returns [ [[bbox, (text, conf)], ...] ]
                         # If no text is found, it can return [None] or [[]]
@@ -550,17 +560,24 @@ class OCRWorker:
                                 scores = []
                                 for line in normalized_pages[0]:
                                     if len(line) >= 2:
-                                        boxes.append(line[0])
                                         raw_info = line[1]
+                                        text = ""
+                                        score = 1.0
+                                        
                                         if isinstance(raw_info, dict):
-                                            texts.append(raw_info.get("text", ""))
-                                            scores.append(raw_info.get("confidence", 1.0))
+                                            text = raw_info.get("text", "")
+                                            score = raw_info.get("confidence", 1.0)
                                         elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
-                                            texts.append(raw_info[0])
-                                            scores.append(raw_info[1] if len(raw_info) > 1 else 1.0)
-                                        else:
-                                            texts.append(str(raw_info))
-                                            scores.append(1.0)
+                                            text = raw_info[0]
+                                            score = raw_info[1] if len(raw_info) > 1 else 1.0
+                                        elif isinstance(raw_info, str):
+                                            text = raw_info
+                                            score = 1.0
+                                            
+                                        if isinstance(text, str) and text.strip():
+                                            boxes.append(line[0])
+                                            texts.append(text.strip())
+                                            scores.append(float(score))
                                 
                                 # Use draw_ocr for visualization
                                 font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
@@ -660,19 +677,19 @@ class OCRWorker:
                         text = raw_info.get("text", "")
                     elif isinstance(raw_info, (list, tuple)) and len(raw_info) >= 1:
                         text = raw_info[0]
-                    else:
-                        text = str(raw_info)
+                    # If it's not a dict, list, or tuple, we check if it's already a string
+                    elif isinstance(raw_info, str):
+                        text = raw_info
                 # Case 2: (text, conf)
                 elif isinstance(line, (list, tuple)) and len(line) >= 1 and isinstance(line[0], str):
                     text = line[0]
                 # Case 3: just text
                 elif isinstance(line, str):
                     text = line
-                else:
-                    text = str(line)
                 
-                if text:
-                    texts.append(str(text).strip())
+                # Only add if text is actually a string and not some technical representation
+                if isinstance(text, str) and text.strip():
+                    texts.append(text.strip())
         return "\n\n".join(texts)
 
     def _extract_structured(self, result, page_num=None):
@@ -687,26 +704,35 @@ class OCRWorker:
                 for word_info in lines:
                     if not isinstance(word_info, (list, tuple)) or len(word_info) < 2:
                         continue
+                    
                     bbox = word_info[0]
-                    raw_info = word_info[1]
+                    # Convert numpy bbox to list
+                    if hasattr(bbox, "tolist"):
+                        bbox = bbox.tolist()
+                    elif isinstance(bbox, (list, tuple)):
+                        bbox = [list(b) if hasattr(b, "tolist") else b for b in bbox]
 
+                    raw_info = word_info[1]
                     text = ""
                     confidence = 1.0
+                    
                     if isinstance(raw_info, dict):
                         text = raw_info.get("text", "")
                         confidence = raw_info.get("confidence", 0.0)
                     elif isinstance(raw_info, (list, tuple)):
                         text = raw_info[0] if len(raw_info) >= 1 else ""
                         confidence = raw_info[1] if len(raw_info) >= 2 else 1.0
-                    else:
-                        text = str(raw_info)
+                    elif isinstance(raw_info, str):
+                        text = raw_info
                         confidence = 1.0
 
-                    page_data["blocks"].append({
-                        "text": str(text).strip(),
-                        "confidence": round(float(confidence), 4),
-                        "bbox": bbox
-                    })
+                    # Ensure text is string and confidence is float
+                    if isinstance(text, str) and text.strip():
+                        page_data["blocks"].append({
+                            "text": text.strip(),
+                            "confidence": round(float(confidence), 4) if not isinstance(confidence, str) else 0.0,
+                            "bbox": bbox
+                        })
             structured_output.append(page_data)
         return structured_output
 
