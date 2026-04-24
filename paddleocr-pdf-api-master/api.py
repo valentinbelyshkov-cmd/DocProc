@@ -553,10 +553,10 @@ class OCRWorker:
                                 (page_idx + 1, now, job_id),
                             )
 
-                    print(f"[{job_id[:8]}] Page {page_idx + 1}/{total_pages} done")
+                        print(f"[{job_id[:8]}] Page {page_idx + 1}/{total_pages} done")
 
-                finally:
-                    os.unlink(tmp_path)
+                    finally:
+                        os.unlink(tmp_path)
 
             with get_db() as db:
                 db.execute(
