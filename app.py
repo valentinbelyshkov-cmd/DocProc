@@ -200,12 +200,25 @@ def download_result(task_id):
             return send_file(converters.to_docx(pages), mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', as_attachment=True, download_name=f"ocr_result_{task_id}.docx")
         elif fmt == 'xlsx':
             return send_file(converters.to_xlsx(pages), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f"ocr_result_{task_id}.xlsx")
+        elif fmt == 'extracted':
+            return send_file(converters.to_extracted_data_xlsx(pages), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f"extracted_data_{task_id}.xlsx")
         else:
             return send_file(converters.to_markdown(pages), mimetype='text/markdown', as_attachment=True, download_name=f"ocr_result_{task_id}.md")
     except Exception as e:
         logger.error(f"Error downloading result: {e}")
         flash(f"Ошибка при скачивании результата: {e}", 'error')
         return redirect(url_for('index'))
+
+@app.route('/api/extracted_data/<task_id>')
+def get_extracted_data(task_id):
+    try:
+        result_data = ocr_client.get_result(task_id)
+        pages = result_data.get('pages', [])
+        extracted = converters.get_extracted_data(pages)
+        return jsonify(extracted)
+    except Exception as e:
+        logger.error(f"Error getting extracted data: {e}")
+        return jsonify({"error": str(e)})
 
 @app.route('/new_conversion')
 def new_conversion():
