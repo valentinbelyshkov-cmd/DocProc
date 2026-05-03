@@ -19,7 +19,7 @@ COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt && \
     pip3 install --no-cache-dir "paddlex[ocr]"
 
-COPY api.py .
+COPY . .
 
 VOLUME /data
 
