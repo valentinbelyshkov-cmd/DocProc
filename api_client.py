@@ -1,5 +1,6 @@
 import requests
 import logging
+from requests.exceptions import ConnectionError, Timeout, RequestException
 from config import PADDLEOCR_API_URL
 
 logger = logging.getLogger(__name__)
@@ -11,9 +12,16 @@ class PaddleOCRClient:
     def submit_job(self, filename, content, content_type, detect_seal=False):
         files = {'file': (filename, content, content_type)}
         data = {'detect_seal': 'true' if detect_seal else 'false'}
-        response = requests.post(f"{self.base_url}/ocr", files=files, data=data)
+        response = requests.post(f"{self.base_url}/ocr", files=files, data=data, timeout=30)
         response.raise_for_status()
         return response.json()
+
+    def is_available(self):
+        try:
+            response = requests.get(f"{self.base_url}/health", timeout=5)
+            return response.status_code == 200
+        except (ConnectionError, Timeout, RequestException):
+            return False
 
     def get_status(self, job_id):
         response = requests.get(f"{self.base_url}/ocr/{job_id}")

@@ -52,6 +52,11 @@ def upload_file():
         flash('Файлы не выбраны', 'error')
         return redirect(url_for('index'))
 
+    if not ocr_client.is_available():
+        flash('Сервис OCR недоступен. Пожалуйста, попробуйте позже.', 'error')
+        logger.error("PaddleOCR API is not available")
+        return redirect(url_for('index'))
+
     if 'tasks' not in session:
         session['tasks'] = []
     
@@ -82,6 +87,8 @@ def upload_file():
                                 processed_any = True
                             except Exception as e:
                                 logger.error(f"Error sending file {z_filename} from ZIP: {e}")
+                                flash(f"Ошибка обработки файла {z_filename} в ZIP архиве: {e}", 'error')
+                                continue
             except Exception as e:
                 logger.error(f"Error processing ZIP file: {e}")
                 flash(f"Ошибка при обработке ZIP архива {filename}: {e}", 'error')
@@ -93,6 +100,7 @@ def upload_file():
             except Exception as e:
                 logger.error(f"Error sending file to PaddleOCR API: {e}")
                 flash(f"Ошибка подключения к OCR бэкенду для {filename}: {e}", 'error')
+                continue
 
     session.modified = True
     if not processed_any:
