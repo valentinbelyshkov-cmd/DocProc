@@ -184,7 +184,7 @@ def parse_document_fields(text: str, doc_type: str) -> List[Dict]:
         if field_name == 'наименование получателя':
             search_text = provider_section
         elif field_name == 'инн':
-            search_text = provider_section if provider_section.strip() else bank_section
+            search_text = bank_section + '\n' + provider_section
         elif field_name in ['бик', 'наименование банка', 'счет']:
             search_text = bank_section
         else:
@@ -292,6 +292,10 @@ def parse_ocr_result(pages: List[Dict]) -> Dict[str, Any]:
         }
     
     fields = parse_document_fields(full_text, doc_type)
+    
+    # Calculate average confidence from all fields
+    if fields:
+        type_confidence = sum(f['confidence'] for f in fields) / len(fields)
     
     tables = extract_numerical_tables(full_text)
     
