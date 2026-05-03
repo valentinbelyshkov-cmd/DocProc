@@ -12,14 +12,14 @@ DOCUMENT_TYPES = {
             r'счет-фактура',
         ],
         'fields': [
-            {'name': 'Тип документа', 'patterns': [r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
-            {'name': 'Номер документа', 'patterns': [r'(?:счф?|invoice)\s*(?:№|no\.?|number|#)\s*[:\-]?\s*(\S+)', r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
-            {'name': 'Дата документа', 'patterns': [r'(?:от\s*)?(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})', r'(?:дата|date)\s*[:\-]?\s*(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
+            {'name': 'Тип документа', 'patterns': [r'((?:Счет|Счёт)-фактура)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
+            {'name': 'Номер документа', 'patterns': [r'(?:счет-фактура|счф?|invoice)\s*(?:№|no\.?|number|#)\s*[:\-]?\s*(\S+)', r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
+            {'name': 'Дата документа', 'patterns': [r'(?:счет-фактура|счф?|invoice)\s*(?:№|no\.?|#)\s*\S+\s+от\s+(\d{1,2}(?:\s+[а-я]+\s+|\.|\/)\d{2,4}(?:\s*г\.)?)', r'(?:от\s*)?(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})', r'(?:дата|date)\s*[:\-]?\s*(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
             {'name': 'Покупатель', 'patterns': [r'покупатель\s*[:\-]?\s*(.+)', r'(?:buyer|customer)\s*[:\-]?\s*(.+)'], 'required': True},
             {'name': 'Продавец', 'patterns': [r'продавец\s*[:\-]?\s*(.+)', r'(?:seller|supplier)\s*[:\-]?\s*(.+)'], 'required': True},
             {'name': 'ИНН продавца', 'patterns': [r'инн\s*(?:продавца)?\s*[:\-]?\s*(\d{10,12})'], 'required': True},
             {'name': 'КПП продавца', 'patterns': [r'кпп\s*(?:продавца)?\s*[:\-]?\s*(\d{9})'], 'required': False},
-            {'name': 'Всего к оплате', 'patterns': [r'(?:всего|итого|total|sum)\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+)', r'([\d\s,]+)\s*(?:руб|₽|rur)'], 'required': True},
+            {'name': 'Всего к оплате', 'patterns': [r'(?:всего|итого|total|sum)\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)', r'([\d\s,]+)\s*(?:руб|₽|rur)'], 'required': True},
         ]
     },
     'УПД': {
@@ -28,15 +28,15 @@ DOCUMENT_TYPES = {
             r'упд',
         ],
         'fields': [
-            {'name': 'Тип документа', 'patterns': [r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
-            {'name': 'Номер документа', 'patterns': [r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
-            {'name': 'Дата документа', 'patterns': [r'(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
-            {'name': 'Покупатель', 'patterns': [r'покупатель\s*[:\-]?\s*(.+)'], 'required': True},
-            {'name': 'Продавец', 'patterns': [r'продавец\s*[:\-]?\s*(.+)'], 'required': True},
-            {'name': 'ИНН продавца', 'patterns': [r'инн\s*(?:продавца)?\s*[:\-]?\s*(\d{10,12})'], 'required': True},
-            {'name': 'КПП продавца', 'patterns': [r'кпп\s*(?:продавца)?\s*[:\-]?\s*(\d{9})'], 'required': False},
+            {'name': 'Тип документа', 'patterns': [r'(универсальный\s*передаточный\s*документ)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
+            {'name': 'Номер документа', 'patterns': [r'(?:универсальный\s*передаточный\s*документ|номер|no\.?)\s*(?:№|no\.?|#)?\s*[:\-]?\s*(\S+)'], 'required': True},
+            {'name': 'Дата документа', 'patterns': [r'(?:№|#)\s*\S+\s+от\s+(\d{1,2}(?:\s+[а-я]+\s+|\.|\/)\d{2,4}(?:\s*г\.)?)', r'(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
+            {'name': 'Покупатель', 'patterns': [r'покупатель\s*[:\-]?\s*(.+)', r'получатель\s*[:\-]?\s*(.+)'], 'required': True},
+            {'name': 'Продавец', 'patterns': [r'продавец\s*[:\-]?\s*(.+)', r'поставщик\s*[:\-]?\s*(.+)'], 'required': True},
+            {'name': 'ИНН продавца', 'patterns': [r'инн\s*(?:продавца|поставщика)?\s*[:\-]?\s*(\d{10,12})'], 'required': True},
+            {'name': 'КПП продавца', 'patterns': [r'кпп\s*(?:продавца|поставщика)?\s*[:\-]?\s*(\d{9})'], 'required': False},
             {'name': 'Основание', 'patterns': [r'(?:основание|basis)\s*[:\-]?\s*(.+)'], 'required': False},
-            {'name': 'Всего к оплате', 'patterns': [r'(?:всего|итого)\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+)'], 'required': True},
+            {'name': 'Всего к оплате', 'patterns': [r'(?:всего|итого)\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)'], 'required': True},
         ]
     },
     'Акт': {
@@ -46,13 +46,13 @@ DOCUMENT_TYPES = {
             r'акт\s+№',
         ],
         'fields': [
-            {'name': 'Тип документа', 'patterns': [r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
-            {'name': 'Номер документа', 'patterns': [r'(?:акт|act)\s*(?:№|no\.?|#)\s*(\S+)', r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
-            {'name': 'Дата документа', 'patterns': [r'(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
+            {'name': 'Тип документа', 'patterns': [r'(Акт\s+(?:приемки-сдачи|выполненных\s+работ|оказанных\s+услуг)?)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
+            {'name': 'Номер документа', 'patterns': [r'(?:акт|act)\s*(?:№|no\.?|#)\s*[:\-]?\s*(\S+)', r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
+            {'name': 'Дата документа', 'patterns': [r'(?:акт|act)\s*(?:№|no\.?|#)\s*\S+\s+от\s+(\d{1,2}(?:\s+[а-я]+\s+|\.|\/)\d{2,4}(?:\s*г\.)?)', r'(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
             {'name': 'Исполнитель', 'patterns': [r'исполнитель\s*[:\-]?\s*(.+)', r'(?:исп|executor)\s*[:\-]?\s*(.+)'], 'required': True},
             {'name': 'ИНН исполнителя', 'patterns': [r'инн\s*(?:исполнителя)?\s*[:\-]?\s*(\d{10,12})'], 'required': False},
             {'name': 'Основание', 'patterns': [r'основание\s*[:\-]?\s*(.+)'], 'required': False},
-            {'name': 'Итого', 'patterns': [r'итого\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+)'], 'required': True},
+            {'name': 'Итого', 'patterns': [r'итого\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)'], 'required': True},
         ]
     },
     'Счет': {
@@ -62,16 +62,16 @@ DOCUMENT_TYPES = {
             r'(?:invoice|bill)\s*(?:no\.?|number)?',
         ],
         'fields': [
-            {'name': 'Тип документа', 'patterns': [r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
-            {'name': 'Номер документа', 'patterns': [r'(?:счет|счёт)\s*(?:№|no\.?|#)\s*[:\-]?\s*(\S+)', r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
-            {'name': 'Дата документа', 'patterns': [r'(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
-            {'name': 'Наименование банка', 'patterns': [r'(?:банк|bank)\s*[:\-]?\s*(.+)'], 'required': False},
-            {'name': 'Наименование получателя', 'patterns': [r'(?:получатель|recipient)\s*[:\-]?\s*(.+)'], 'required': False},
-            {'name': 'Счет', 'patterns': [r'(?:счет|счёт)\s*(?:получател[а-я])?\s*[:\-]?\s*(\d{20})'], 'required': False},
+            {'name': 'Тип документа', 'patterns': [r'((?:Счет|Счёт)\s+на\s+оплату)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
+            {'name': 'Номер документа', 'patterns': [r'(?:счет|счёт)(?:\s+на\s+оплату)?\s*(?:№|no\.?|#)\s*[:\-]?\s*(\S+)', r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
+            {'name': 'Дата документа', 'patterns': [r'(?:счет|счёт)(?:\s+на\s+оплату)?\s*(?:№|no\.?|#)\s*\S+\s+от\s+(\d{1,2}(?:\s+[а-я]+\s+|\.|\/)\d{2,4}(?:\s*г\.)?)', r'от\s+(\d{1,2}\s+[а-я]+\s+\d{4})', r'(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
+            {'name': 'Наименование банка', 'patterns': [r'Банк\s+получателя\s*[:\-]?\s*(.+)', r'(.+)\s+БИК\s+\d{9}', r'(?:\s|^)([\w\s\"-]*БАНК[\w\s\"-]*)(?:\s|$)', r'(?:банк|bank)\s*[:\-]?\s*(.+)'], 'required': False},
+            {'name': 'Наименование получателя', 'patterns': [r'Получатель\s*[:\-]?\s*(.+)', r'ИНН\s+\d+\s+КПП\s+\d+\s+(.+)', r'(?:получатель|recipient)\s*[:\-]?\s*(.+)'], 'required': False},
+            {'name': 'Счет', 'patterns': [r'(?:расч[её]тный|р/с|сч\.?|счет|счёт)\s*(?:получателя|№|#)?\s*[:\-]?\s*(\d{20})', r'(\d{20})'], 'required': False},
             {'name': 'БИК', 'patterns': [r'(?:бик|bik)\s*[:\-]?\s*(\d{9})'], 'required': False},
             {'name': 'ИНН', 'patterns': [r'инн\s*[:\-]?\s*(\d{10,12})'], 'required': False},
             {'name': 'Основание', 'patterns': [r'основание\s*[:\-]?\s*(.+)'], 'required': False},
-            {'name': 'Итого', 'patterns': [r'итого\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+)'], 'required': True},
+            {'name': 'Итого', 'patterns': [r'(?:всего|итого)\s*(?:к\s*оплате|по\s*счету)?\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)', r'([\d\s,]+)\s*(?:руб|₽|rur)'], 'required': True},
         ]
     }
 }
@@ -110,10 +110,17 @@ def extract_field_value(text: str, field_config: Dict) -> Tuple[Optional[str], f
                 value = match.group(0).strip()
             
             if value:
+                # Basic confidence based on value length
                 confidence = 0.7 + (0.3 * min(len(value) / 20, 1.0))
                 
+                # Special cases for high-confidence patterns
                 if field_config['name'] in ['ИНН продавца', 'КПП продавца', 'ИНН исполнителя', 'ИНН', 'БИК', 'Счет']:
                     confidence = min(confidence + 0.1, 0.95)
+                
+                # Boost confidence for dates with months
+                if field_config['name'] == 'Дата документа' and re.search(r'[а-я]{3,}', value, re.IGNORECASE):
+                    confidence = min(confidence + 0.2, 0.98)
+                    
                 break
     
     return value, confidence
