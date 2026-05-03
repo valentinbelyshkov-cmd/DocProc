@@ -67,10 +67,55 @@
                         <div class="bg-white dark:bg-gray-900 flex-grow flex items-center justify-center p-4">
                             <img src="{{ url_for('get_image', task_id=task_id, page_num=1) }}" alt="Визуализация результата OCR" class="max-w-full max-h-[400px] shadow-sm" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x500?text=Визуализация+недоступна';">
                         </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-4 border-t dark:border-gray-600">
+                            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Обнаруженные печати:</h3>
+                            <div id="seals-container" class="flex flex-wrap gap-4">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 italic">Поиск печатей...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const taskId = "{{ task_id }}";
+            const container = document.getElementById('seals-container');
+            console.log('Loading seals for task:', taskId);
+            
+            fetch(`/api/seals/${taskId}`)
+                .then(response => {
+                    console.log('Seals API response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Seals data received:', data);
+                    if (data.seals && data.seals.length > 0) {
+                        container.innerHTML = '';
+                        data.seals.forEach(filename => {
+                            const imgWrapper = document.createElement('div');
+                            imgWrapper.className = 'border dark:border-gray-600 rounded p-1 bg-white dark:bg-gray-800 shadow-sm';
+                            
+                            const img = document.createElement('img');
+                            img.src = `/api/seal/${taskId}/${filename}`;
+                            img.alt = 'Печать';
+                            img.className = 'max-h-24 object-contain';
+                            img.onload = () => console.log('Seal image loaded:', filename);
+                            img.onerror = () => console.error('Failed to load seal image:', filename);
+                            
+                            imgWrapper.appendChild(img);
+                            container.appendChild(imgWrapper);
+                        });
+                    } else {
+                        container.innerHTML = '<p class="text-xs text-gray-500 dark:text-gray-400">Печати не обнаружены или детекция была выключена.</p>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading seals:', err);
+                    container.innerHTML = '<p class="text-xs text-red-500">Ошибка при загрузке печатей.</p>';
+                });
+        });
+    </script>
 </body>
 </html>

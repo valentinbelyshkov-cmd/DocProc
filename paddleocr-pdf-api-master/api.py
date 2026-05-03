@@ -9,15 +9,18 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Optional, List, Dict, Any, Union
 
 import json
 import magic
 import numpy as np
 import pypdfium2 as pdfium
 import uvicorn
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, Form
 from fastapi.responses import FileResponse
-import numpy as np
+from typing import Optional, List, Dict, Any, Union
+
+_import_errors = []
 
 def _summarize_for_log(obj, max_str_len=200):
     """Рекурсивно заменяет numpy arrays на компактное описание, остальное оставляет как есть."""
@@ -32,37 +35,44 @@ def _summarize_for_log(obj, max_str_len=200):
         return obj if len(obj) <= max_str_len else obj[:max_str_len] + "..."
     else:
         return obj
-# Robust import for PaddleOCR and draw_ocr
+# Robust import for PaddleOCR, draw_ocr and PPStructureV3
 try:
-    from paddleocr import PaddleOCR, draw_ocr
+    from paddleocr import PaddleOCR
 except ImportError:
-    # Try alternative import paths for PaddleOCR
     try:
-        from paddleocr import PaddleOCR
+        from paddleocr.paddleocr import PaddleOCR
     except ImportError:
-        try:
-            from paddleocr.paddleocr import PaddleOCR
-        except ImportError:
-            PaddleOCR = None
+        PaddleOCR = None
 
-    # Try alternative import paths for draw_ocr
+try:
+    from paddleocr import draw_ocr
+except ImportError:
     try:
-        from paddleocr import draw_ocr
+        from paddleocr.tools.infer.utility import draw_ocr
     except ImportError:
-        try:
-            from paddleocr import draw_OCR as draw_ocr
-        except ImportError:
-            try:
-                from paddleocr.tools.infer.utility import draw_ocr
-            except ImportError:
-                # Fallback: define a dummy draw_ocr that returns the image unchanged
-                def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
-                    return image
+        draw_ocr = None
 
-# Provide draw_OCR as an alias to draw_ocr for compatibility
+try:
+    import paddleocr
+    print(f"DEBUG: paddleocr version: {getattr(paddleocr, '__version__', 'unknown')}")
+    print(f"DEBUG: paddleocr path: {getattr(paddleocr, '__file__', 'unknown')}")
+    from paddleocr import PPStructureV3
+    print("DEBUG: Imported PPStructureV3 from paddleocr")
+except Exception as e:
+    err_msg = f"Failed to import PPStructureV3 from paddleocr: {type(e).__name__}: {e}"
+    print(f"DEBUG: {err_msg}")
+    _import_errors.append(err_msg)
+    PPStructureV3 = None
+
+# Fallback for draw_ocr if still None
+if draw_ocr is None:
+    def draw_ocr(image, boxes, txts=None, scores=None, font_path=None, **kwargs):
+        return image
+
+# Provide draw_OCR as an alias for compatibility
 draw_OCR = draw_ocr
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
@@ -329,6 +339,7 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'queued',
                 total_pages INTEGER DEFAULT 0,
                 processed_pages INTEGER DEFAULT 0,
+                detect_seal INTEGER DEFAULT 0,
                 error TEXT,
                 created_at REAL NOT NULL,
                 updated_at REAL NOT NULL
@@ -348,6 +359,12 @@ def init_db():
             db.execute("SELECT result_json FROM pages LIMIT 1")
         except sqlite3.OperationalError:
             db.execute("ALTER TABLE pages ADD COLUMN result_json TEXT")
+
+        # Migration: ensure detect_seal exists
+        try:
+            db.execute("SELECT detect_seal FROM jobs LIMIT 1")
+        except sqlite3.OperationalError:
+            db.execute("ALTER TABLE jobs ADD COLUMN detect_seal INTEGER DEFAULT 0")
 
         now = time.time()
         stale = db.execute("SELECT id FROM jobs WHERE status = 'processing'").fetchall()
@@ -439,16 +456,23 @@ class OCRWorker:
 
     def _load_model(self):
         if self._model is None:
+            print(f"DEBUG: PaddleOCR class availability: {PaddleOCR is not None}")
             if PaddleOCR is None:
-                raise ImportError("PaddleOCR could not be imported. Please check installation.")
+                raise ImportError("PaddleOCR could not be imported. Please check installation and python path.")
             print("Loading PaddleOCR model...")
-            self._model = PaddleOCR(
-                use_angle_cls=True,
-                use_doc_orientation_classify=True,
-                use_doc_unwarping=True,
-                lang='ru'
-            )
-            print("Model loaded.")
+            try:
+                self._model = PaddleOCR(
+                    use_angle_cls=True,
+                    use_doc_orientation_classify=True,
+                    use_doc_unwarping=True,
+                    lang='ru'
+                )
+                print("Model loaded successfully.")
+            except Exception as e:
+                print(f"Error during PaddleOCR initialization: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
         return self._model
 
     def _run(self):
@@ -468,7 +492,7 @@ class OCRWorker:
     def _pick_next_job(self):
         with get_db() as db:
             row = db.execute(
-                "SELECT id, filename FROM jobs WHERE status = 'queued' ORDER BY created_at LIMIT 1"
+                "SELECT id, filename, detect_seal FROM jobs WHERE status = 'queued' ORDER BY created_at LIMIT 1"
             ).fetchone()
             if row:
                 now = time.time()
@@ -698,6 +722,118 @@ class OCRWorker:
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                     pil_image.save(tmp.name)
                     tmp_path = tmp.name
+
+                                        # === ДЕТЕКЦИЯ И ВЫРЕЗАНИЕ ПЕЧАТЕЙ ===
+                    mask_count = 0  # <-- ОБЯЗАТЕЛЬНО инициализируем здесь
+                    if job.get("detect_seal"):
+                        try:
+                            print(f"[{job_id[:8]}] Starting seal detection on page {page_idx + 1}...")
+                            if PPStructureV3 is None:
+                                print(f"[{job_id[:8]}] Error: PPStructureV3 is not available (failed to import at startup)")
+                            else:
+                                if not hasattr(self, '_layout_engine') or self._layout_engine is None:
+                                    print(f"[{job_id[:8]}] Initializing PPStructureV3 layout engine...")
+                                    try:
+                                        self._layout_engine = PPStructureV3(
+                                            use_doc_orientation_classify=False,
+                                            use_doc_unwarping=False,
+                                            use_seal_recognition=False,
+                                            use_table_recognition=False,
+                                            use_formula_recognition=False,
+                                            use_chart_recognition=False,
+                                            use_region_detection=False,
+                                        )
+                                        print(f"[{job_id[:8]}] PPStructureV3 initialized")
+                                    except Exception as e:
+                                        print(f"[{job_id[:8]}] Error initializing PPStructureV3: {e}")
+                                        import traceback
+                                        traceback.print_exc()
+                                        self._layout_engine = None
+
+                                if self._layout_engine:
+                                    try:
+                                        output = self._layout_engine.predict(input=tmp_path)
+                                        
+                                        layout_result = None
+                                        for res in output:
+                                            layout_result = res
+                                            break
+
+                                        # DEBUG: посмотрим, что реально пришло
+                                        print(f"[{job_id[:8]}] DEBUG layout_result type={type(layout_result)}")
+                                        if layout_result is not None:
+                                            if hasattr(layout_result, 'layout_det_res'):
+                                                print(f"[{job_id[:8]}] DEBUG layout_det_res={layout_result.layout_det_res}")
+                                            elif isinstance(layout_result, dict):
+                                                print(f"[{job_id[:8]}] DEBUG layout_result keys={list(layout_result.keys())}")
+                                            else:
+                                                print(f"[{job_id[:8]}] DEBUG layout_result attrs={dir(layout_result)}")
+
+                                        # Пытаемся извлечь boxes из разных возможных форматов
+                                        boxes = []
+                                        if layout_result is not None:
+                                            if hasattr(layout_result, 'layout_det_res') and layout_result.layout_det_res:
+                                                lres = layout_result.layout_det_res
+                                                if isinstance(lres, dict):
+                                                    boxes = lres.get('boxes', [])
+                                                elif hasattr(lres, 'boxes'):
+                                                    boxes = lres.boxes
+                                            elif isinstance(layout_result, dict):
+                                                # Иногда результат сразу dict
+                                                boxes = layout_result.get('boxes', []) or layout_result.get('layout_det_res', {}).get('boxes', [])
+
+                                        print(f"[{job_id[:8]}] Layout engine returned {len(boxes)} regions")
+
+                                        if boxes:
+                                            seals_dir = job_dir / "seals"
+                                            seals_dir.mkdir(exist_ok=True)
+                                            draw = ImageDraw.Draw(pil_image)
+
+                                            for i, region in enumerate(boxes):
+                                                # region может быть dict или объектом
+                                                if hasattr(region, 'get'):
+                                                    label = region.get('label', '').lower()
+                                                    coord = region.get('coordinate', region.get('bbox', [0, 0, 0, 0]))
+                                                else:
+                                                    label = getattr(region, 'label', '').lower()
+                                                    coord = getattr(region, 'coordinate', getattr(region, 'bbox', [0, 0, 0, 0]))
+
+                                                if label != 'seal':
+                                                    continue
+
+                                                x1, y1, x2, y2 = map(int, coord)
+                                                print(f"[{job_id[:8]}] Region {i} type: {label} bbox: {coord}")
+
+                                                try:
+                                                    seal_crop = pil_image.crop((x1, y1, x2, y2))
+                                                    seal_path = seals_dir / f"page_{page_idx + 1}_seal_{mask_count}.png"
+                                                    seal_crop.save(seal_path)
+                                                    print(f"[{job_id[:8]}] Found seal at {coord}, saved to {seal_path}")
+
+                                                    draw.rectangle([x1, y1, x2, y2], fill="white")
+                                                    mask_count += 1
+                                                except Exception as ce:
+                                                    print(f"[{job_id[:8]}] Error cropping/masking seal: {ce}")
+
+                                        if mask_count > 0:
+                                            print(f"[{job_id[:8]}] Total masked {mask_count} seals on page {page_idx + 1}")
+                                            pil_image.save(tmp_path)
+                                        else:
+                                            print(f"[{job_id[:8]}] No seals found on page {page_idx + 1}")
+
+                                    except Exception as sle:
+                                        print(f"[{job_id[:8]}] Seal detection inner error: {sle}")
+                                        import traceback
+                                        traceback.print_exc()
+                        except Exception as sle:
+                            print(f"[{job_id[:8]}] Seal detection failed: {sle}")
+                            import traceback
+                            traceback.print_exc()
+
+                    if mask_count > 0:
+                        # Пересохраняем изображение с замазанными печатями перед OCR
+                        pil_image.save(tmp_path)
+                    # ====================================
 
                     try:
                         result = ocr.ocr(tmp_path)
@@ -988,8 +1124,25 @@ def shutdown():
     worker.stop()
 
 
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "PaddleOCR": PaddleOCR is not None,
+        "PPStructureV3": PPStructureV3 is not None,
+        "draw_ocr": draw_ocr is not None,
+        "import_errors": _import_errors
+    }
+
+
 @app.post("/ocr")
-async def submit_job(file: UploadFile = File(...)):
+async def submit_job(file: UploadFile = File(...), detect_seal: Optional[str] = Form(None)):
+    # Handle the fact that detect_seal might be a string ("true"/"false") or missing
+    is_detect_seal = False
+    if detect_seal is not None:
+        is_detect_seal = str(detect_seal).lower() in ("true", "1", "on", "yes")
+    
+    print(f"Received OCR job submission. Raw detect_seal: {detect_seal}, interpreted as: {is_detect_seal}")
     suffix = Path(file.filename or "").suffix.lower()
     is_pdf = suffix == ".pdf"
     is_image = suffix in ALLOWED_IMAGE_EXTS
@@ -1016,8 +1169,8 @@ async def submit_job(file: UploadFile = File(...)):
     now = time.time()
     with get_db() as db:
         db.execute(
-            "INSERT INTO jobs (id, filename, status, created_at, updated_at) VALUES (?, ?, 'queued', ?, ?)",
-            (job_id, file.filename, now, now),
+            "INSERT INTO jobs (id, filename, status, detect_seal, created_at, updated_at) VALUES (?, ?, 'queued', ?, ?, ?)",
+            (job_id, file.filename, 1 if is_detect_seal else 0, now, now),
         )
 
     return {"job_id": job_id, "filename": file.filename, "status": "queued"}
@@ -1034,6 +1187,7 @@ def get_job_status(job_id: str):
         "job_id": job["id"],
         "filename": job["filename"],
         "status": job["status"],
+        "detect_seal": job["detect_seal"],
         "total_pages": job["total_pages"],
         "processed_pages": job["processed_pages"],
         "error": job["error"],
@@ -1049,6 +1203,28 @@ def get_job_image(job_id: str, page_num: int):
     if not img_path.exists():
         raise HTTPException(404, "Image not found or not yet processed")
     return FileResponse(str(img_path))
+
+
+@app.get("/ocr/{job_id}/seals")
+def list_job_seals(job_id: str):
+    job_dir = Path(UPLOAD_DIR) / job_id
+    seals_dir = job_dir / "seals"
+    if not seals_dir.exists():
+        return {"seals": []}
+    
+    seals = []
+    for f in sorted(seals_dir.glob("*.png")):
+        seals.append(f.name)
+    return {"seals": seals}
+
+
+@app.get("/ocr/{job_id}/seals/{filename}")
+def get_seal_image(job_id: str, filename: str):
+    job_dir = Path(UPLOAD_DIR) / job_id
+    seal_path = job_dir / "seals" / filename
+    if not seal_path.exists():
+        raise HTTPException(404, "Seal not found")
+    return FileResponse(str(seal_path))
 
 
 @app.get("/ocr/{job_id}/pages/{page_num}")
