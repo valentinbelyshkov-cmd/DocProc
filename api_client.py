@@ -1,0 +1,37 @@
+import requests
+import logging
+from config import PADDLEOCR_API_URL
+
+logger = logging.getLogger(__name__)
+
+class PaddleOCRClient:
+    def __init__(self, base_url=PADDLEOCR_API_URL):
+        self.base_url = base_url
+
+    def submit_job(self, filename, content, content_type, detect_seal=False):
+        files = {'file': (filename, content, content_type)}
+        data = {'detect_seal': 'true' if detect_seal else 'false'}
+        response = requests.post(f"{self.base_url}/ocr", files=files, data=data)
+        response.raise_for_status()
+        return response.json()
+
+    def get_status(self, job_id):
+        response = requests.get(f"{self.base_url}/ocr/{job_id}")
+        response.raise_for_status()
+        return response.json()
+
+    def get_result(self, job_id):
+        response = requests.get(f"{self.base_url}/ocr/{job_id}/result")
+        response.raise_for_status()
+        return response.json()
+
+    def get_image(self, job_id, page_num):
+        return requests.get(f"{self.base_url}/ocr/{job_id}/image/{page_num}", stream=True)
+
+    def list_seals(self, job_id):
+        response = requests.get(f"{self.base_url}/ocr/{job_id}/seals")
+        response.raise_for_status()
+        return response.json()
+
+    def get_seal(self, job_id, filename):
+        return requests.get(f"{self.base_url}/ocr/{job_id}/seals/{filename}", stream=True)
