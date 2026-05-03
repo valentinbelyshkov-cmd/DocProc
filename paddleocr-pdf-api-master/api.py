@@ -35,7 +35,7 @@ def _summarize_for_log(obj, max_str_len=200):
         return obj if len(obj) <= max_str_len else obj[:max_str_len] + "..."
     else:
         return obj
-# Robust import for PaddleOCR, draw_ocr and PPStructure
+# Robust import for PaddleOCR, draw_ocr and PPStructureV3
 try:
     from paddleocr import PaddleOCR
 except ImportError:
@@ -56,46 +56,13 @@ try:
     import paddleocr
     print(f"DEBUG: paddleocr version: {getattr(paddleocr, '__version__', 'unknown')}")
     print(f"DEBUG: paddleocr path: {getattr(paddleocr, '__file__', 'unknown')}")
-    from paddleocr import PPStructure
-    print("DEBUG: Imported PPStructure from paddleocr")
+    from paddleocr import PPStructureV3
+    print("DEBUG: Imported PPStructureV3 from paddleocr")
 except Exception as e:
-    err_msg = f"Failed to import PPStructure from paddleocr: {type(e).__name__}: {e}"
+    err_msg = f"Failed to import PPStructureV3 from paddleocr: {type(e).__name__}: {e}"
     print(f"DEBUG: {err_msg}")
     _import_errors.append(err_msg)
-    try:
-        from paddleocr.ppstructure.predict_system import PredictSystem as PPStructure
-        print("DEBUG: Imported PPStructure from paddleocr.ppstructure.predict_system (PredictSystem)")
-    except Exception as e2:
-        err_msg2 = f"Failed to import PPStructure from paddleocr.ppstructure.predict_system: {type(e2).__name__}: {e2}"
-        print(f"DEBUG: {err_msg2}")
-        _import_errors.append(err_msg2)
-        try:
-            # Another potential location in some versions
-            from paddleocr.ppstructure.ppstructure import PPStructure
-            print("DEBUG: Imported PPStructure from paddleocr.ppstructure.ppstructure")
-        except Exception as e3:
-            err_msg3 = f"Failed to import PPStructure from paddleocr.ppstructure.ppstructure: {type(e3).__name__}: {e3}"
-            print(f"DEBUG: {err_msg3}")
-            _import_errors.append(err_msg3)
-            try:
-                import paddleocr.ppstructure as ppstructure
-                if hasattr(ppstructure, 'PPStructure'):
-                    PPStructure = ppstructure.PPStructure
-                    print("DEBUG: Found PPStructure in paddleocr.ppstructure")
-                elif hasattr(ppstructure, 'predict_system') and hasattr(ppstructure.predict_system, 'PredictSystem'):
-                    PPStructure = ppstructure.predict_system.PredictSystem
-                    print("DEBUG: Found PredictSystem in paddleocr.ppstructure.predict_system")
-                elif hasattr(ppstructure, 'predict_system') and hasattr(ppstructure.predict_system, 'PPStructure'):
-                    PPStructure = ppstructure.predict_system.PPStructure
-                    print("DEBUG: Found PPStructure in paddleocr.ppstructure.predict_system")
-                else:
-                    PPStructure = None
-                    print("DEBUG: Could not find PPStructure or PredictSystem in paddleocr.ppstructure")
-            except Exception as e4:
-                err_msg4 = f"Failed to import paddleocr.ppstructure: {type(e4).__name__}: {e4}"
-                print(f"DEBUG: {err_msg4}")
-                _import_errors.append(err_msg4)
-                PPStructure = None
+    PPStructureV3 = None
 
 # Fallback for draw_ocr if still None
 if draw_ocr is None:
@@ -756,65 +723,116 @@ class OCRWorker:
                     pil_image.save(tmp.name)
                     tmp_path = tmp.name
 
-                    # === ДЕТЕКЦИЯ И ВЫРЕЗАНИЕ ПЕЧАТЕЙ ===
+                                        # === ДЕТЕКЦИЯ И ВЫРЕЗАНИЕ ПЕЧАТЕЙ ===
+                    mask_count = 0  # <-- ОБЯЗАТЕЛЬНО инициализируем здесь
                     if job.get("detect_seal"):
                         try:
                             print(f"[{job_id[:8]}] Starting seal detection on page {page_idx + 1}...")
-                            if PPStructure is None:
-                                print(f"[{job_id[:8]}] Error: PPStructure is not available (failed to import at startup)")
+                            if PPStructureV3 is None:
+                                print(f"[{job_id[:8]}] Error: PPStructureV3 is not available (failed to import at startup)")
                             else:
                                 if not hasattr(self, '_layout_engine') or self._layout_engine is None:
-                                    print(f"[{job_id[:8]}] Initializing PPStructure layout engine...")
+                                    print(f"[{job_id[:8]}] Initializing PPStructureV3 layout engine...")
                                     try:
-                                        print(f"[{job_id[:8]}] Attempting to initialize PPStructure with lang='ru'...")
-                                        self._layout_engine = PPStructure(show_log=False, lang='ru')
+                                        self._layout_engine = PPStructureV3(
+                                            use_doc_orientation_classify=False,
+                                            use_doc_unwarping=False,
+                                            use_seal_recognition=False,
+                                            use_table_recognition=False,
+                                            use_formula_recognition=False,
+                                            use_chart_recognition=False,
+                                            use_region_detection=False,
+                                        )
+                                        print(f"[{job_id[:8]}] PPStructureV3 initialized")
                                     except Exception as e:
-                                        print(f"[{job_id[:8]}] Failed with lang='ru', trying default...")
-                                        try:
-                                            self._layout_engine = PPStructure(show_log=False)
-                                        except Exception as e2:
-                                            print(f"[{job_id[:8]}] Error initializing PPStructure: {e2}")
-                                            self._layout_engine = None
-                                
+                                        print(f"[{job_id[:8]}] Error initializing PPStructureV3: {e}")
+                                        import traceback
+                                        traceback.print_exc()
+                                        self._layout_engine = None
+
                                 if self._layout_engine:
-                                    img_np = np.array(pil_image)
-                                    layout_res = self._layout_engine(img_np)
-                                    print(f"[{job_id[:8]}] Layout engine returned {len(layout_res)} regions")
-                                    
-                                    mask_count = 0
-                                    seals_dir = job_dir / "seals"
-                                    seals_dir.mkdir(exist_ok=True)
-                                    
-                                    draw = ImageDraw.Draw(pil_image)
-                                    for i, region in enumerate(layout_res):
-                                        region_type = region.get('type', 'unknown').lower()
-                                        print(f"[{job_id[:8]}] Region {i} type: {region_type}")
-                                        if region_type == 'seal':
-                                            bbox = region['bbox'] # [x1, y1, x2, y2]
-                                            # Crop and save seal
-                                            try:
-                                                seal_crop = pil_image.crop((bbox[0], bbox[1], bbox[2], bbox[3]))
-                                                seal_path = seals_dir / f"page_{page_idx + 1}_seal_{i}.png"
-                                                seal_crop.save(seal_path)
-                                                print(f"[{job_id[:8]}] Found seal at {bbox}, saved to {seal_path}")
-                                                
-                                                # Mask on original
-                                                draw.rectangle([bbox[0], bbox[1], bbox[2], bbox[3]], fill="white")
-                                                mask_count += 1
-                                            except Exception as ce:
-                                                print(f"[{job_id[:8]}] Error cropping/masking seal: {ce}")
-                                
-                                if mask_count > 0:
-                                    print(f"[{job_id[:8]}] Total masked {mask_count} seals on page {page_idx + 1}")
-                                    pil_image.save(tmp_path)
-                                else:
-                                    print(f"[{job_id[:8]}] No seals found on page {page_idx + 1}")
+                                    try:
+                                        output = self._layout_engine.predict(input=tmp_path)
+                                        
+                                        layout_result = None
+                                        for res in output:
+                                            layout_result = res
+                                            break
+
+                                        # DEBUG: посмотрим, что реально пришло
+                                        print(f"[{job_id[:8]}] DEBUG layout_result type={type(layout_result)}")
+                                        if layout_result is not None:
+                                            if hasattr(layout_result, 'layout_det_res'):
+                                                print(f"[{job_id[:8]}] DEBUG layout_det_res={layout_result.layout_det_res}")
+                                            elif isinstance(layout_result, dict):
+                                                print(f"[{job_id[:8]}] DEBUG layout_result keys={list(layout_result.keys())}")
+                                            else:
+                                                print(f"[{job_id[:8]}] DEBUG layout_result attrs={dir(layout_result)}")
+
+                                        # Пытаемся извлечь boxes из разных возможных форматов
+                                        boxes = []
+                                        if layout_result is not None:
+                                            if hasattr(layout_result, 'layout_det_res') and layout_result.layout_det_res:
+                                                lres = layout_result.layout_det_res
+                                                if isinstance(lres, dict):
+                                                    boxes = lres.get('boxes', [])
+                                                elif hasattr(lres, 'boxes'):
+                                                    boxes = lres.boxes
+                                            elif isinstance(layout_result, dict):
+                                                # Иногда результат сразу dict
+                                                boxes = layout_result.get('boxes', []) or layout_result.get('layout_det_res', {}).get('boxes', [])
+
+                                        print(f"[{job_id[:8]}] Layout engine returned {len(boxes)} regions")
+
+                                        if boxes:
+                                            seals_dir = job_dir / "seals"
+                                            seals_dir.mkdir(exist_ok=True)
+                                            draw = ImageDraw.Draw(pil_image)
+
+                                            for i, region in enumerate(boxes):
+                                                # region может быть dict или объектом
+                                                if hasattr(region, 'get'):
+                                                    label = region.get('label', '').lower()
+                                                    coord = region.get('coordinate', region.get('bbox', [0, 0, 0, 0]))
+                                                else:
+                                                    label = getattr(region, 'label', '').lower()
+                                                    coord = getattr(region, 'coordinate', getattr(region, 'bbox', [0, 0, 0, 0]))
+
+                                                if label != 'seal':
+                                                    continue
+
+                                                x1, y1, x2, y2 = map(int, coord)
+                                                print(f"[{job_id[:8]}] Region {i} type: {label} bbox: {coord}")
+
+                                                try:
+                                                    seal_crop = pil_image.crop((x1, y1, x2, y2))
+                                                    seal_path = seals_dir / f"page_{page_idx + 1}_seal_{mask_count}.png"
+                                                    seal_crop.save(seal_path)
+                                                    print(f"[{job_id[:8]}] Found seal at {coord}, saved to {seal_path}")
+
+                                                    draw.rectangle([x1, y1, x2, y2], fill="white")
+                                                    mask_count += 1
+                                                except Exception as ce:
+                                                    print(f"[{job_id[:8]}] Error cropping/masking seal: {ce}")
+
+                                        if mask_count > 0:
+                                            print(f"[{job_id[:8]}] Total masked {mask_count} seals on page {page_idx + 1}")
+                                            pil_image.save(tmp_path)
+                                        else:
+                                            print(f"[{job_id[:8]}] No seals found on page {page_idx + 1}")
+
+                                    except Exception as sle:
+                                        print(f"[{job_id[:8]}] Seal detection inner error: {sle}")
+                                        import traceback
+                                        traceback.print_exc()
                         except Exception as sle:
                             print(f"[{job_id[:8]}] Seal detection failed: {sle}")
                             import traceback
                             traceback.print_exc()
-                    else:
-                        print(f"[{job_id[:8]}] Seal detection not requested for page {page_idx + 1}")
+
+                    if mask_count > 0:
+                        # Пересохраняем изображение с замазанными печатями перед OCR
+                        pil_image.save(tmp_path)
                     # ====================================
 
                     try:
@@ -1111,7 +1129,7 @@ def health_check():
     return {
         "status": "ok",
         "PaddleOCR": PaddleOCR is not None,
-        "PPStructure": PPStructure is not None,
+        "PPStructureV3": PPStructureV3 is not None,
         "draw_ocr": draw_ocr is not None,
         "import_errors": _import_errors
     }
