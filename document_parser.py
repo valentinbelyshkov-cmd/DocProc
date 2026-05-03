@@ -12,7 +12,7 @@ DOCUMENT_TYPES = {
             r'счет-фактура',
         ],
         'fields': [
-            {'name': 'Тип документа', 'patterns': [r'((?:Счет|Счёт)-фактура)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
+            {'name': 'Тип документа', 'patterns': [r'((?:Счет|Sчeт)-фактура)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
             {'name': 'Номер документа', 'patterns': [r'(?:счет-фактура|счф?|invoice)\s*(?:№|no\.?|number|#)\s*[:\-]?\s*(\S+)', r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
             {'name': 'Дата документа', 'patterns': [r'(?:счет-фактура|счф?|invoice)\s*(?:№|no\.?|#)\s*\S+\s+от\s+(\d{1,2}(?:\s+[а-я]+\s+|\.|\/)\d{2,4}(?:\s*г\.)?)', r'(?:от\s*)?(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})', r'(?:дата|date)\s*[:\-]?\s*(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
             {'name': 'Покупатель', 'patterns': [r'покупатель\s*[:\-]?\s*(.+)', r'(?:buyer|customer)\s*[:\-]?\s*(.+)'], 'required': True},
@@ -62,16 +62,40 @@ DOCUMENT_TYPES = {
             r'(?:invoice|bill)\s*(?:no\.?|number)?',
         ],
         'fields': [
-            {'name': 'Тип документа', 'patterns': [r'((?:Счет|Счёт)\s+на\s+оплату)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
+            {'name': 'Тип документа', 'patterns': [r'((?:Счет|Sчeт)\s+на\s+оплату)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'], 'required': True},
             {'name': 'Номер документа', 'patterns': [r'(?:счет|счёт)(?:\s+на\s+оплату)?\s*(?:№|no\.?|#)\s*[:\-]?\s*(\S+)', r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'], 'required': True},
-            {'name': 'Дата документа', 'patterns': [r'(?:счет|счёт)(?:\s+на\s+оплату)?\s*(?:№|no\.?|#)\s*\S+\s+от\s+(\d{1,2}(?:\s+[а-я]+\s+|\.|\/)\d{2,4}(?:\s*г\.)?)', r'от\s+(\d{1,2}\s+[а-я]+\s+\d{4})', r'(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
-            {'name': 'Наименование банка', 'patterns': [r'Банк\s+получателя\s*[:\-]?\s*(.+)', r'(.+)\s+БИК\s+\d{9}', r'(?:\s|^)([\w\s\"-]*БАНК[\w\s\"-]*)(?:\s|$)', r'(?:банк|bank)\s*[:\-]?\s*(.+)'], 'required': False},
-            {'name': 'Наименование получателя', 'patterns': [r'Получатель\s*[:\-]?\s*(.+)', r'ИНН\s+\d+\s+КПП\s+\d+\s+(.+)', r'(?:получатель|recipient)\s*[:\-]?\s*(.+)'], 'required': False},
-            {'name': 'Счет', 'patterns': [r'(?:расч[её]тный|р/с|сч\.?|счет|счёт)\s*(?:получателя|№|#)?\s*[:\-]?\s*(\d{20})', r'(\d{20})'], 'required': False},
-            {'name': 'БИК', 'patterns': [r'(?:бик|bik)\s*[:\-]?\s*(\d{9})'], 'required': False},
-            {'name': 'ИНН', 'patterns': [r'инн\s*[:\-]?\s*(\d{10,12})'], 'required': False},
-            {'name': 'Основание', 'patterns': [r'основание\s*[:\-]?\s*(.+)'], 'required': False},
-            {'name': 'Итого', 'patterns': [r'(?:всего|итого)\s*(?:к\s*оплате|по\s*счету)?\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)', r'([\d\s,]+)\s*(?:руб|₽|rur)'], 'required': True},
+            {'name': 'Дата документа', 'patterns': [r'(?:счет|счёт)(?:\s+на\s+оплату)?\s*(?:№|no\.?|#)\s*\S+\s+от\s+(\d{1,2}(?:\s+[а-яё]+\s+|\.|\/)\d{2,4}(?:\s*г\.)?)', r'от\s+(\d{1,2}\s+[а-яё]+\s+\d{4})', r'(\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'], 'required': True},
+            {'name': 'Наименование получателя', 'patterns': [
+                r'поставщик\s*[:\-]?\s*(?:["\']?)(ООО\s+"[^"]+"|АО\s+"[^"]+"|ПАО\s+"[^"]+")',
+                r'поставщик\s*[:\-]?\s*(?:ooo|ооо|ао|пао)?\s*["\']?([\w\s"-]+?)(?:["\']?\s*,|\s*$|\s*инн)',
+            ], 'required': True},
+            {'name': 'ИНН', 'patterns': [
+                r'(?:инн|inn)\s*[:\-]?\s*(\d{10,12})',
+            ], 'required': True},
+            {'name': 'БИК', 'patterns': [
+                r'(?:бик|bik)\s*[:\-]?\s*(\d{9})',
+                r'\b(\d{9})\b(?=\s*(?:кпп|инн|р/с|$))',
+                r'(?<!\d)(\d{9})(?!\d)',
+            ], 'required': False},
+            {'name': 'Наименование банка', 'patterns': [
+                r'(?:банк\s+получателя|банк получателя)\s*[:\-]?\s*([^\n]+)',
+                r'([А-ЯЁ][\w\s"-]{0,30}Банк[\w\s"-]{0,20})',
+                r'(?:Банк\s+(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+))?([^\n]+)',
+                r'(ООО\s+"[^"]+"|ПАО\s+"[^"]+")(?=\s+[Г|g]\.|$)',
+            ], 'required': False},
+            {'name': 'Счет', 'patterns': [
+                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т)\s*[:\-]?\s*(\d{20})',
+                r'(?:^|\n)\s*(407\d{17})\s*(?:\n|$)',
+                r'(?:^|\n)\s*(\d{20})\s*(?:\n|$)',
+            ], 'required': False},
+            {'name': 'Основание', 'patterns': [
+                r'(?:основание|договор|контракт)\s*[:\-]?\s*(.+)',
+                r'(\d{5,}\s+(?:от|OT)\s+\d{1,2}[.,]\d{1,2}[.,]\d{2,4})',
+            ], 'required': False},
+            {'name': 'Итого', 'patterns': [
+                r'(?:всего|итого)\s*(?:к\s*оплате|по\s*счету)?\s*[:\-]?\s*([\d\s]+[.,]\d{2})\s*(?:руб|₽|rur)?',
+                r'([\d\s]+[.,]\d{2})\s*(?:руб|₽|rur)',
+            ], 'required': True},
         ]
     }
 }
@@ -110,14 +134,11 @@ def extract_field_value(text: str, field_config: Dict) -> Tuple[Optional[str], f
                 value = match.group(0).strip()
             
             if value:
-                # Basic confidence based on value length
                 confidence = 0.7 + (0.3 * min(len(value) / 20, 1.0))
                 
-                # Special cases for high-confidence patterns
                 if field_config['name'] in ['ИНН продавца', 'КПП продавца', 'ИНН исполнителя', 'ИНН', 'БИК', 'Счет']:
                     confidence = min(confidence + 0.1, 0.95)
                 
-                # Boost confidence for dates with months
                 if field_config['name'] == 'Дата документа' and re.search(r'[а-я]{3,}', value, re.IGNORECASE):
                     confidence = min(confidence + 0.2, 0.98)
                     
@@ -130,11 +151,72 @@ def parse_document_fields(text: str, doc_type: str) -> List[Dict]:
     if doc_type not in DOCUMENT_TYPES:
         return []
     
+    lines = text.split('\n')
+    
+    table_start_idx = len(lines)
+    for i, line in enumerate(lines):
+        line_lower = line.lower().strip()
+        if re.match(r'^\s*№?\s*(?:наименование|товар|описание|ед\.|кол-во|количество|сумма)\s*', line_lower, re.IGNORECASE):
+            table_start_idx = i
+            break
+        if re.match(r'^\s*\d+\s+\d+\s+\d+', line.strip()):
+            table_start_idx = i
+            break
+    
+    provider_idx = len(lines)
+    for i, line in enumerate(lines):
+        if re.search(r'поставщик\s*[:\-]?\s*', line, re.IGNORECASE):
+            provider_idx = i
+            break
+    
+    bank_section = '\n'.join(lines[:provider_idx]) if provider_idx > 0 else ''
+    provider_section = '\n'.join(lines[provider_idx:table_start_idx]) if provider_idx < table_start_idx else ''
+    
     results = []
     config = DOCUMENT_TYPES[doc_type]
     
     for field_config in config['fields']:
-        value, confidence = extract_field_value(text, field_config)
+        value = None
+        confidence = 0.0
+        
+        field_name = field_config['name'].lower()
+        
+        if field_name == 'наименование получателя':
+            search_text = provider_section
+        elif field_name == 'инн':
+            search_text = provider_section if provider_section.strip() else bank_section
+        elif field_name in ['бик', 'наименование банка', 'счет']:
+            search_text = bank_section
+        else:
+            search_text = text
+        
+        for pattern in field_config['patterns']:
+            match = re.search(pattern, search_text, re.IGNORECASE)
+            if match:
+                if match.groups():
+                    value = match.group(1).strip()
+                else:
+                    value = match.group(0).strip()
+                
+                if value and len(value) > 1:
+                    confidence = 0.7 + (0.3 * min(len(value) / 20, 1.0))
+                    
+                    if field_config['name'] in ['ИНН продавца', 'КПП продавца', 'ИНН исполнителя', 'ИНН', 'БИК', 'Счет']:
+                        confidence = min(confidence + 0.1, 0.95)
+                    
+                    if field_config['name'] == 'Дата документа' and re.search(r'[а-я]{3,}', value, re.IGNORECASE):
+                        confidence = min(confidence + 0.2, 0.98)
+                    
+                    if field_config['name'] == 'Наименование банка':
+                        bad_patterns = ['реквизиты', 'получателя', 'счет', 'банк$']
+                        if any(re.search(p, value.lower()) for p in bad_patterns):
+                            continue
+                        if not re.search(r'(банк|bank|точка|открытие|сбер)', value, re.IGNORECASE):
+                            if not re.search(r'(пао|ооо|ао)\s+', value, re.IGNORECASE):
+                                continue
+                    
+                    break
+        
         results.append({
             'field': field_config['name'],
             'value': value or '',
@@ -142,46 +224,6 @@ def parse_document_fields(text: str, doc_type: str) -> List[Dict]:
         })
     
     return results
-
-
-def find_tables_in_text(text: str) -> List[List[List[str]]]:
-    tables = []
-    lines = text.split('\n')
-    
-    table_pattern = re.compile(r'^\s*[\d۰۱]+[\s,.\t]+[\d۰۱]+')
-    
-    for i, line in enumerate(lines):
-        if re.search(r'\d+\s+\d+', line) and len(line.split()) >= 4:
-            potential_table_lines = [line]
-            
-            for j in range(i + 1, min(i + 20, len(lines))):
-                next_line = lines[j]
-                
-                if re.search(r'(?:итого|всего|total|sum)', next_line, re.IGNORECASE):
-                    potential_table_lines.append(next_line)
-                    break
-                
-                if re.search(r'\d', next_line):
-                    cols = len(re.findall(r'\S+', next_line))
-                    if 2 <= cols <= 15:
-                        potential_table_lines.append(next_line)
-                    else:
-                        break
-                else:
-                    break
-            
-            if len(potential_table_lines) >= 2:
-                table_data = []
-                for table_line in potential_table_lines:
-                    cells = re.split(r'[\t,|]+', table_line)
-                    cells = [c.strip() for c in cells if c.strip()]
-                    if cells:
-                        table_data.append(cells)
-                
-                if table_data and any(len(row) >= 2 for row in table_data):
-                    tables.append(table_data)
-    
-    return tables
 
 
 def extract_numerical_tables(text: str) -> List[List[List[str]]]:
