@@ -4,6 +4,103 @@ from typing import Dict, List, Tuple, Optional, Any
 
 logger = logging.getLogger(__name__)
 
+BANK_BIK_TO_CORR_ACC_PREFIX = {
+    '044525411': '3010181014525',
+    '044525593': '30101810400000000593',
+    '044030653': '30101810300000000653',
+}
+
+VALID_BANK_INDICATORS = [
+    'банк', 'bank', 'точка', 'открытие', 'сбер', 'альфа', 'тбанк', 'втб',
+    'газпром', 'россельхоз', 'райффайзен', 'юникредит', 'бинбанк', 'промсвязь',
+    'мосОбл', 'авангард', 'ситибанк', 'инвест', 'форбанк', 'русслав', 'вест',
+    'уралсиб', 'росбанк', 'мкб', 'бкс', 'открытие', 'санкт-петербург',
+]
+
+
+def normalize_account_number(acc: str) -> str:
+    return re.sub(r'\D', '', acc)
+
+
+def validate_bank_accounts(bik: str, corr_account: str, rec_texts: list) -> Tuple[str, float]:
+    if not corr_account:
+        return corr_account, 0.0
+    
+    bik_clean = normalize_account_number(bik)
+    corr_clean = normalize_account_number(corr_account)
+    
+    if len(corr_clean) != 20:
+        return corr_account, 0.0
+    
+    if corr_clean.startswith('301'):
+        logger.warning(f"Обнаружен счёт начинающийся с 301: {corr_account}")
+        return f"[ПРОВЕРЬТЕ] {corr_account}", 0.3
+    
+    if len(bik_clean) == 9 and bik_clean.startswith('04'):
+        correct_prefix = BANK_BIK_TO_CORR_ACC_PREFIX.get(bik_clean)
+        if correct_prefix and not corr_clean.startswith('4'):
+            logger.warning(f"Обнаружен счёт не начинающийся с 4. БИК={bik_clean}")
+            return f"[ПРОВЕРЬТЕ] {corr_account}", 0.3
+    
+    return corr_account, 0.95
+
+
+def is_warning_text(text: str) -> bool:
+    warning_phrases = [
+        r'внимание!?.?', r'оплата данного', r'означает согласие',
+        r'в противном случае', r'не гарантируется', r'уведомление',
+        r'обязательно', r'на складе', r'поставки\s+товара',
+    ]
+    text_lower = text.lower()
+    return any(re.search(p, text_lower) for p in warning_phrases)
+
+
+def is_valid_bank_name(text: str) -> bool:
+    text_lower = text.lower()
+    if is_warning_text(text_lower):
+        return False
+    
+    if re.search(r'(реквизиты|получател[а-я]*|счет\s*$|bank$|^вним)', text_lower):
+        return False
+    
+    has_bank_word = any(word in text_lower for word in VALID_BANK_INDICATORS)
+    
+    if re.search(r'(пао|ооо|ао|зао)\s+["\']?\s*\w', text_lower):
+        return True
+    
+    return has_bank_word
+
+
+def clean_bank_name(raw_text: str, rec_texts: list) -> Tuple[str, float]:
+    if not raw_text or len(raw_text) < 3:
+        return '', 0.0
+    
+    if is_warning_text(raw_text):
+        for text in rec_texts:
+            if is_valid_bank_name(text):
+                return text, 0.8
+        
+        correct_bik = None
+        for bik, prefix in BANK_BIK_TO_CORR_ACC_PREFIX.items():
+            for rt in rec_texts:
+                if bik in rt or prefix in rt:
+                    correct_bik = bik
+                    break
+            if correct_bik:
+                break
+        
+        if correct_bik:
+            for rt in rec_texts:
+                if re.search(r'(?:банк\s*(?:получателя|\s*$)|(?:пао|ооо|ао)\s+[А-ЯЁа-яё]+(?:\s*(?:банк|банк\s+[А-Я]))?)', rt, re.IGNORECASE):
+                    if is_valid_bank_name(rt):
+                        return rt, 0.7
+        return '', 0.0
+    
+    if is_valid_bank_name(raw_text):
+        return raw_text, 0.85
+    
+    return '', 0.0
+
 DOCUMENT_TYPES = {
     'Счет-фактура': {
         'patterns': [
@@ -78,14 +175,19 @@ DOCUMENT_TYPES = {
                 r'(?<!\d)(\d{9})(?!\d)',
             ], 'required': False},
             {'name': 'Наименование банка', 'patterns': [
-                r'(?:банк\s+получателя|банк получателя)\s*[:\-]?\s*([^\n]+)',
-                r'([А-ЯЁ][\w\s"-]{0,30}Банк[\w\s"-]{0,20})',
-                r'(?:Банк\s+(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+))?([^\n]+)',
-                r'(ООО\s+"[^"]+"|ПАО\s+"[^"]+")(?=\s+[Г|g]\.|$)',
+                r'(?:банк\s+(?:получателя)?|банк получателя)\s*[:\-]?\s*([^\n]+)',
+                r'([А-ЯЁ][\w\s"-]{0,30}[Б|b]анк[\w\s"-]{0,30})',
+                r'(?:[Б|b]анк\s+(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+))?([^\n]+)',
+                r'(ПАО\s+"[^"]+"|ПAO\s+"[^"]+")',
+                r'(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+)([^\n]+)(?=\s+[Г老家])',
             ], 'required': False},
             {'name': 'Счет', 'patterns': [
-                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т)\s*[:\-]?\s*(\d{20})',
+                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т)\s*[:\-]?\s*(407\d{17})',
+                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т)\s*[:\-]?\s*((?:301|407)\d{17})',
+                r'(?:корр[.,]?\s*сч[её]т[ар]?[ое]?[в]?[ой]?\s*)?[:\-]?\s*(407\d{17})',
+                r'(?:корр[.,]?\s*сч[её]т[ар]?[ое]?[в]?[ой]?\s*)?[:\-]?\s*((?:301|407)\d{17})',
                 r'(?:^|\n)\s*(407\d{17})\s*(?:\n|$)',
+                r'(?:^|\n)\s*((?:301|407)\d{17})\s*(?:\n|$)',
                 r'(?:^|\n)\s*(\d{20})\s*(?:\n|$)',
             ], 'required': False},
             {'name': 'Основание', 'patterns': [
@@ -169,7 +271,19 @@ def parse_document_fields(text: str, doc_type: str) -> List[Dict]:
             provider_idx = i
             break
     
-    bank_section = '\n'.join(lines[:provider_idx]) if provider_idx > 0 else ''
+    bank_idx = len(lines)
+    for i, line in enumerate(lines):
+        if re.search(r'банк\s*(?:получателя)?\s*[:\-]?\s*', line, re.IGNORECASE):
+            bank_idx = i
+            break
+    
+    header_start_idx = 0
+    for i, line in enumerate(lines[:min(table_start_idx, provider_idx, bank_idx)]):
+        if re.search(r'(?:счет\s+на\s+оплату| invoice|акт|упд|универсальный)', line, re.IGNORECASE):
+            header_start_idx = i
+            break
+    
+    bank_section = '\n'.join(lines[header_start_idx:table_start_idx])
     provider_section = '\n'.join(lines[provider_idx:table_start_idx]) if provider_idx < table_start_idx else ''
     
     results = []
@@ -273,12 +387,16 @@ def extract_numerical_tables(text: str) -> List[List[List[str]]]:
 
 def parse_ocr_result(pages: List[Dict]) -> Dict[str, Any]:
     full_text = ""
+    rec_texts = []
     for page in pages:
         full_text += page.get('markdown', '') + "\n"
         if 'result_json' in page and page['result_json']:
             for p_data in page['result_json']:
                 for block in p_data.get('blocks', []):
-                    full_text += block.get('text', '') + "\n"
+                    text = block.get('text', '')
+                    if text:
+                        rec_texts.append(text)
+                    full_text += text + "\n"
     
     doc_type, type_confidence = detect_document_type(full_text)
     
@@ -292,6 +410,27 @@ def parse_ocr_result(pages: List[Dict]) -> Dict[str, Any]:
         }
     
     fields = parse_document_fields(full_text, doc_type)
+    
+    for f in fields:
+        if f['field'] == 'Счет' and f['value']:
+            bik_val = ''
+            for bf in fields:
+                if bf['field'] == 'БИК' and bf['value']:
+                    bik_val = bf['value']
+                    break
+            corrected_acc, conf = validate_bank_accounts(bik_val, f['value'], rec_texts)
+            if corrected_acc != f['value']:
+                f['value'] = corrected_acc
+                f['confidence'] = conf
+        
+        if f['field'] == 'Наименование банка' and f['value']:
+            cleaned_name, conf = clean_bank_name(f['value'], rec_texts)
+            if cleaned_name:
+                f['value'] = cleaned_name
+                f['confidence'] = conf
+            else:
+                f['value'] = '—'
+                f['confidence'] = 0.0
     
     # Calculate average confidence from all fields
     if fields:
