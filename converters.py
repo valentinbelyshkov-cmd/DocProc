@@ -2,6 +2,7 @@
 Converters for OCR results to various output formats.
 """
 import logging
+import re
 from typing import Dict, List, Any
 import pandas as pd
 from io import BytesIO

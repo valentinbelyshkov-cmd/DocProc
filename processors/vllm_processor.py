@@ -6,6 +6,8 @@ import uuid
 import threading
 import logging
 import io
+import time
+import re
 from typing import Dict, Any, Optional, List
 from pdf2image import convert_from_bytes
 import PIL.Image
@@ -356,7 +358,3 @@ class VLLMProcessor(BaseProcessor):
                 result[name] = '\n'.join(lines[start:next_start])
 
         return result
-
-
-# Import time module (needed for timestamps)
-import time
