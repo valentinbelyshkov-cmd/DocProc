@@ -45,27 +45,41 @@ class OCRWorker:
         self._stop.set()
 
     def _run(self):
-        try:
-            ocr = ModelLoader.load_ocr_model()
-        except Exception as e:
-            print(f"Failed to load OCR model: {e}")
-            return
-
+        retry_count = 0
+        max_retries = 5
+        retry_delay = 5  # seconds
+        
         while not self._stop.is_set():
-            job = self._pick_next_job()
-            if job is None:
-                time.sleep(1)
-                continue
             try:
-                self._process_job(ocr, job)
+                ocr = ModelLoader.load_ocr_model()
+                # Model loaded successfully - process jobs
+                while not self._stop.is_set():
+                    job = self._pick_next_job()
+                    if job is None:
+                        time.sleep(1)
+                        continue
+                    try:
+                        self._process_job(ocr, job)
+                    except Exception as e:
+                        import traceback
+                        traceback.print_exc()
+                        with get_db() as db:
+                            db.execute(
+                                "UPDATE jobs SET status = 'failed', error = ?, updated_at = ? WHERE id = ?",
+                                (str(e), time.time(), job["id"]),
+                            )
             except Exception as e:
+                retry_count += 1
+                if retry_count > max_retries:
+                    print(f"Max retries ({max_retries}) exceeded for model loading. Worker stopping.")
+                    return
+                print(f"Failed to load OCR model (attempt {retry_count}/{max_retries}): {e}")
                 import traceback
                 traceback.print_exc()
-                with get_db() as db:
-                    db.execute(
-                        "UPDATE jobs SET status = 'failed', error = ?, updated_at = ? WHERE id = ?",
-                        (str(e), time.time(), job["id"]),
-                    )
+                print(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                # Increase delay for next retry
+                retry_delay = min(retry_delay * 2, 60)
 
     def _pick_next_job(self):
         with get_db() as db:

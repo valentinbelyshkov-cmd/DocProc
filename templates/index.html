@@ -104,6 +104,31 @@
     </div>
 
     <script>
+        // Check PaddleOCR availability on page load
+        async function checkPaddleOCRAvailability() {
+            try {
+                const response = await fetch('/api/health', { method: 'GET' });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (!data.model_loaded) {
+                        const modelSelect = document.getElementById('model_name');
+                        // Find and disable PaddleOCR option
+                        for (let option of modelSelect.options) {
+                            if (option.value === 'paddle-default') {
+                                option.disabled = true;
+                                option.text = option.text + ' (недоступен)';
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Could not check PaddleOCR status');
+            }
+        }
+        
+        checkPaddleOCRAvailability();
+        
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const fileName = document.getElementById('file-name');
