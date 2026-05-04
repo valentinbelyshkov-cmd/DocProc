@@ -13,3 +13,8 @@ MAX_CONTENT_LENGTH = 64 * 1024 * 1024  # 64 MB limit
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 ZHIPUAI_API_KEY = os.environ.get('ZHIPUAI_API_KEY', '')
 PADDLEOCR_VL_ENDPOINT = os.environ.get('PADDLEOCR_VL_ENDPOINT', '')
+
+# Ollama local LLM settings
+OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'glm-ocr')
+NOCTRIX_MODEL = os.environ.get('NOCTRIX_MODEL', 'noctrix/lightonocr-2-1b')
