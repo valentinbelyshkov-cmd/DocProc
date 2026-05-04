@@ -231,6 +231,7 @@ class BaseModel(ABC):
         """Parse JSON response from model."""
         import json
 
+        # Direct try
         try:
             parsed = json.loads(content)
             return {
@@ -239,7 +240,20 @@ class BaseModel(ABC):
                 'raw': parsed
             }
         except json.JSONDecodeError:
-            logger.warning("Не удалось распарсить JSON из ответа модели")
+            # Try to extract JSON using regex
+            json_match = re.search(r'(\{.*\})', content, re.DOTALL)
+            if json_match:
+                try:
+                    parsed = json.loads(json_match.group(1))
+                    return {
+                        'text': parsed.get('text', content),
+                        'tables': parsed.get('tables', []),
+                        'raw': parsed
+                    }
+                except json.JSONDecodeError:
+                    pass
+
+            logger.warning(f"Не удалось распарсить JSON из ответа модели. Content: {content[:100]}...")
             return {
                 'text': content,
                 'tables': [],
