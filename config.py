@@ -18,4 +18,4 @@ PADDLEOCR_VL_ENDPOINT = os.environ.get('PADDLEOCR_VL_ENDPOINT', '')
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
 OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'glm-ocr')
 # Use the full model name as shown in `ollama list`
-NOCTRIX_MODEL = os.environ.get('NOCTRIX_MODEL', 'hf.co/noctrex/LightOnOCR-2-1B-GGUF:Q4_K_M')
+NOCTRIX_MODEL = os.environ.get('NOCTRIX_MODEL', 'maternion/LightOnOCR-2')
