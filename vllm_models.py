@@ -149,3 +149,108 @@ class PaddleOCRVLModel(BaseVLLMModel):
             return response.json().get('tables', [])
         except Exception as e:
             return [[["Error calling PaddleOCR-VL", str(e)]]]
+
+
+class OllamaModel(BaseVLLMModel):
+    """Ollama local LLM with vision support (GLM-OCR, Noctrix LightOnOCR-2-1B, etc.)"""
+    
+    def __init__(self, model_name="glm-ocr", base_url=None):
+        self.model_name = model_name or config.OLLAMA_MODEL
+        self.base_url = base_url or config.OLLAMA_BASE_URL
+
+    def _image_to_base64(self, image):
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+    def extract_tables(self, image: PIL.Image.Image) -> list:
+        import base64
+        
+        base64_image = self._image_to_base64(image)
+        
+        # Ollama API format
+        payload = {
+            "model": self.model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Extract all tables from this image and return them as a JSON list of lists (rows and cells). Only return valid JSON, no markdown.",
+                    "images": [base64_image]
+                }
+            ],
+            "stream": False
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/chat",
+                json=payload,
+                timeout=120
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            content = result.get('message', {}).get('content', '')
+            
+            # Parse JSON from response
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+            
+            return json.loads(content)
+        except requests.exceptions.ConnectionError:
+            return [[["Ollama не подключен. Запустите: ollama serve"]]]
+        except requests.exceptions.Timeout:
+            return [[["Таймаут запроса к Ollama"]]]
+        except Exception as e:
+            return [[["Error calling Ollama", str(e)]]]
+
+
+class NoctrixLightOnOCRModel(BaseVLLMModel):
+    """Noctrix/LightOnOCR-2-1B model via Ollama"""
+    
+    def __init__(self, base_url=None):
+        self.base_url = base_url or config.OLLAMA_BASE_URL
+        self.model_name = config.NOCTRIX_MODEL
+
+    def _image_to_base64(self, image):
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+    def extract_tables(self, image: PIL.Image.Image) -> list:
+        base64_image = self._image_to_base64(image)
+        
+        payload = {
+            "model": self.model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Perform OCR on this image. Extract all text and tables. Return as JSON format with 'text' and 'tables' fields. Only return valid JSON.",
+                    "images": [base64_image]
+                }
+            ],
+            "stream": False
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/chat",
+                json=payload,
+                timeout=180
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            content = result.get('message', {}).get('content', '')
+            
+            # Parse JSON
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+            
+            return json.loads(content)
+        except Exception as e:
+            return [[["Error calling Noctrix LightOnOCR", str(e)]]]

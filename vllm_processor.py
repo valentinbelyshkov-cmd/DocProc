@@ -6,7 +6,7 @@ import logging
 import PIL.Image
 import io
 from pdf2image import convert_from_path, convert_from_bytes
-from vllm_models import GLMOCRModel, PaddleOCRVLModel, OpenRouterModel
+from vllm_models import GLMOCRModel, PaddleOCRVLModel, OpenRouterModel, OllamaModel, NoctrixLightOnOCRModel
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,10 @@ class VLLMProcessor:
         self.models = {
             'glm-ocr': GLMOCRModel(),
             'paddle-vl': PaddleOCRVLModel(),
-            'openrouter': OpenRouterModel()
+            'openrouter': OpenRouterModel(),
+            'ollama-glm': OllamaModel(model_name='glm-ocr'),
+            'ollama': OllamaModel(),
+            'noctrix': NoctrixLightOnOCRModel()
         }
 
     def get_model(self, model_name):
