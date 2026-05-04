@@ -103,10 +103,12 @@ class ActHandler(BaseDocumentHandler):
             'patterns': [
                 r'основание\s*[:\-]?\s*(.+)',
                 r'(?:договор|контракт)\s*(?:№|no\.?)?\s*[:\-]?\s*(\S+)',
-                r'договор\s+(?:№|no\.?)?\s*[:\-]?\s*(\d+\s+от\s+\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'
+                r'договор\s+(?:№|no\.?)?\s*[:\-]?\s*(\d+\s+от\s+\d{1,2}[.,]\d{1,2}[.,]\d{2,4})',
+                r'(?:по\s+)?договору\s+(?:№|no\.?)?\s*[:\-]?\s*(\d+)\s+от\s+(\d{1,2}\s+[а-я]+\s+\d{4})',
+                r'(?:по\s+)?договору\s+(?:№|no\.?)?\s*[:\-]?\s*(\d+\s+(?:от\s+)?\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'
             ],
             'required': False,
-            'region': 'header'
+            'region': 'all'
         },
         {
             'name': 'Итого',
@@ -142,7 +144,7 @@ class ActHandler(BaseDocumentHandler):
 
     FIELD_REGIONS = {
         'header': ['Тип документа', 'Номер документа', 'Дата документа', 'Основание', 'Место составления'],
-        'provider': ['Исполнитель', 'ИНН исполнителя', 'КПП исполнителя'],
+        'provider': ['Исполнитель', 'ИНН исполнителя'],
         'customer': ['Заказчик', 'ИНН заказчика'],
         'bank': [],
         'footer': ['Итого'],
@@ -200,17 +202,29 @@ class ActHandler(BaseDocumentHandler):
         lines = text.split('\n')
 
         table_start_idx = self.detect_table_start(lines)
+        provider_text = regions.get('provider', '')
+        is_ip = bool(re.search(r'\bИП\b', provider_text, re.IGNORECASE))
 
         for field_config in self.REQUIRED_FIELDS + self.OPTIONAL_FIELDS:
             value = None
             confidence = 0.0
             field_name = field_config['name']
 
+            # Для ИП не извлекаем КПП
+            if field_name == 'КПП исполнителя' and is_ip:
+                results.append({
+                    'field': field_name,
+                    'value': '',
+                    'confidence': 0.0,
+                    'required': field_config.get('required', False)
+                })
+                continue
+
             region = field_config.get('region', 'all')
             if region == 'header':
                 search_text = '\n'.join(lines[:table_start_idx])
             elif region == 'provider':
-                search_text = regions.get('provider', '')
+                search_text = provider_text
             elif region == 'customer':
                 search_text = regions.get('customer', '')
             elif region == 'bank':
@@ -224,7 +238,12 @@ class ActHandler(BaseDocumentHandler):
                 match = re.search(pattern, search_text, re.IGNORECASE)
                 if match:
                     if match.groups():
-                        value = match.group(1).strip()
+                        # Если несколько групп (например, номер и дата договора) - объединяем
+                        groups = [g.strip() for g in match.groups() if g and g.strip()]
+                        if len(groups) > 1:
+                            value = ' '.join(groups)
+                        else:
+                            value = groups[0] if groups else match.group(1).strip()
                     else:
                         value = match.group(0).strip()
 
