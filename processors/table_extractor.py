@@ -58,11 +58,16 @@ class TableExtractor:
 
     def detect_tables(self, text: str) -> List[Dict[str, Any]]:
         """
-        Detect all tables in text.
+        Detect all tables in text, including HTML and Markdown/text tables.
 
         Returns:
             List of detected table metadata
         """
+        # First try to find HTML tables
+        html_tables = self._extract_html_tables(text)
+        if html_tables:
+            return html_tables
+
         lines = text.split('\n')
         tables = []
         current_table = []
@@ -132,6 +137,41 @@ class TableExtractor:
 
         return tables
 
+    def _extract_html_tables(self, text: str) -> List[Dict[str, Any]]:
+        """Extract tables from HTML <table> tags."""
+        tables = []
+        table_matches = re.finditer(r'<table.*?>.*?</table>', text, re.DOTALL | re.IGNORECASE)
+
+        for match in table_matches:
+            table_html = match.group(0)
+            rows = []
+            row_matches = re.finditer(r'<tr.*?>.*?</tr>', table_html, re.DOTALL | re.IGNORECASE)
+
+            for row_match in row_matches:
+                row_html = row_match.group(0)
+                cells = []
+                cell_matches = re.finditer(r'<(?:td|th).*?>(.*?)</(?:td|th)>', row_html, re.DOTALL | re.IGNORECASE)
+                for cell_match in cell_matches:
+                    cell_content = cell_match.group(1)
+                    # Remove other tags and clean
+                    cell_content = re.sub(r'<.*?>', '', cell_content).strip()
+                    cells.append(cell_content)
+
+                if cells:
+                    rows.append(cells)
+
+            if len(rows) >= self.min_rows:
+                tables.append({
+                    'start_line': 0,
+                    'end_line': 0,
+                    'rows': rows,
+                    'num_rows': len(rows),
+                    'num_columns': max(len(r) for r in rows) if rows else 0,
+                    'is_parsed': True
+                })
+
+        return tables
+
     def _is_table_row(self, line: str) -> bool:
         """Check if a line looks like a table row."""
         # Extract words and numbers
@@ -196,7 +236,9 @@ class TableExtractor:
         result = []
 
         for table in tables:
-            if table['num_columns'] >= self.min_columns:
+            if table.get('is_parsed'):
+                result.append(table['rows'])
+            elif table['num_columns'] >= self.min_columns:
                 parsed_rows = [
                     self._parse_columns(row)
                     for row in table['rows']
@@ -219,17 +261,27 @@ class TableExtractor:
                 continue
 
             parsed_rows = []
-            for row in table['rows']:
-                cells = self._parse_columns(row)
+            if table.get('is_parsed'):
+                for cells in table['rows']:
+                    # Check if this row contains numbers
+                    has_numbers = any(
+                        re.search(self.numeric_pattern, cell)
+                        for cell in cells
+                    )
+                    if has_numbers:
+                        parsed_rows.append(cells)
+            else:
+                for row in table['rows']:
+                    cells = self._parse_columns(row)
 
-                # Check if this row contains numbers
-                has_numbers = any(
-                    re.search(self.numeric_pattern, cell)
-                    for cell in cells
-                )
+                    # Check if this row contains numbers
+                    has_numbers = any(
+                        re.search(self.numeric_pattern, cell)
+                        for cell in cells
+                    )
 
-                if has_numbers:
-                    parsed_rows.append(cells)
+                    if has_numbers:
+                        parsed_rows.append(cells)
 
             if len(parsed_rows) >= self.min_rows:
                 result.append(parsed_rows)
