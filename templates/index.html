@@ -70,6 +70,18 @@
                     </label>
                 </div>
 
+                <div class="space-y-2">
+                    <label for="model_name" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Выберите модель обработки
+                    </label>
+                    <select name="model_name" id="model_name" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="paddle-default">PaddleOCR (Стандартная)</option>
+                        <option value="glm-ocr">GLM-OCR</option>
+                        <option value="paddle-vl">PaddleOCR-VL-1.5</option>
+                        <option value="openrouter">OpenRouter API</option>
+                    </select>
+                </div>
+
                 <div>
                     <button type="submit" id="submit-btn" disabled class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
                         Обработать документ
