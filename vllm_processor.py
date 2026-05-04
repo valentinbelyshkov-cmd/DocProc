@@ -54,41 +54,78 @@ class VLLMProcessor:
         task = self.tasks[task_id]
         task.status = 'processing'
         task.updated_at = time.time()
+        logger.info(f"Starting processing task {task_id} for file {task.filename} using model {task.model_name}")
         
         try:
             # Determine if it's a PDF or image
             images = []
             if task.filename.lower().endswith('.pdf'):
+                logger.info(f"Converting PDF {task.filename} to images")
                 images = convert_from_bytes(content)
             else:
+                logger.info(f"Opening image {task.filename}")
                 images = [PIL.Image.open(io.BytesIO(content))]
             
             task.total_pages = len(images)
+            if task.total_pages == 0:
+                logger.warning(f"No pages found in file {task.filename}")
+                raise ValueError(f"No pages could be extracted from {task.filename}")
+                
+            logger.info(f"Total pages to process: {task.total_pages}")
             model = self.get_model(task.model_name)
             
             pages_results = []
             for i, img in enumerate(images):
+                logger.info(f"Processing page {i+1}/{task.total_pages}")
                 # Store image
                 img_io = io.BytesIO()
                 img.save(img_io, 'PNG')
                 img_io.seek(0)
                 task.images[i+1] = img_io.getvalue()
 
-                # Extract tables using VLLM
-                tables = model.extract_tables(img)
+                # Extract tables/text using VLLM
+                logger.info(f"Calling model {task.model_name} for page {i+1}")
+                result_data = model.extract_tables(img)
+                logger.info(f"Model returned data for page {i+1}")
                 
-                # Mock markdown for now
-                markdown = f"## Tables from page {i+1}\n\n"
-                if tables:
-                    for table in tables:
-                        for row in table:
-                            markdown += "| " + " | ".join([str(c) for c in row]) + " |\n"
-                        markdown += "\n"
+                # Build markdown from result
+                markdown = f"## Results from page {i+1}\n\n"
+                
+                # Handle different result formats
+                if isinstance(result_data, dict):
+                    # If model returns both text and tables
+                    if 'text' in result_data and result_data['text']:
+                        markdown += result_data['text'] + "\n\n"
+                    
+                    if 'tables' in result_data and result_data['tables']:
+                        markdown += "### Extracted Tables\n\n"
+                        for table in result_data['tables']:
+                            if isinstance(table, list):
+                                for row in table:
+                                    if isinstance(row, list):
+                                        markdown += "| " + " | ".join([str(c) for c in row]) + " |\n"
+                                    else:
+                                        markdown += f"| {row} |\n"
+                                markdown += "\n"
+                elif isinstance(result_data, list):
+                    # Assume it's a list of tables
+                    for table in result_data:
+                        if isinstance(table, list):
+                            for row in table:
+                                if isinstance(row, list):
+                                    markdown += "| " + " | ".join([str(c) for c in row]) + " |\n"
+                                else:
+                                    markdown += f"| {row} |\n"
+                            markdown += "\n"
+                        else:
+                            markdown += str(table) + "\n\n"
+                else:
+                    markdown += str(result_data)
                 
                 pages_results.append({
                     'page_num': i + 1,
                     'markdown': markdown,
-                    'tables': tables, # Original tables from VLLM
+                    'result_data': result_data, 
                     'result_json': [] # Compatible with existing code
                 })
                 
@@ -104,9 +141,10 @@ class VLLMProcessor:
                 'processed_pages': task.processed_pages
             }
             task.status = 'completed'
+            logger.info(f"Task {task_id} completed successfully")
             
         except Exception as e:
-            logger.error(f"Error processing task {task_id}: {e}")
+            logger.exception(f"Error processing task {task_id}: {e}")
             task.status = 'failed'
             task.error = str(e)
         
