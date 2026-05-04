@@ -149,11 +149,15 @@ class BaseDocumentHandler(ABC):
             r'^\s*№?\s*(?:наименование|товар|описание|ед\.|кол-во|количество|сумма)',
             r'^\s*\d+\s+\d+\s+\d+',
             r'^\s*(?:номер|№)\s*(?:наименование|товар)',
+            r'^\s*<table',
+            r'^\s*<thead',
+            r'^\s*<tr',
+            r'^\s*\|',
         ]
 
         for i, line in enumerate(lines):
             for pattern in table_headers:
-                if re.match(pattern, line.lower()):
+                if re.search(pattern, line.lower()):
                     return i
 
         return len(lines)  # No table found, return end of document

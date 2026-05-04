@@ -92,35 +92,53 @@ def _extract_regions(text: str) -> Dict[str, str]:
     for i, line in enumerate(lines):
         line_lower = line.lower().strip()
         if any(
-            re.match(p, line_lower)
+            re.search(p, line_lower)
             for p in [
                 r'^\s*№?\s*(?:наименование|товар|описание|ед\.|кол-во|количество|сумма)',
                 r'^\s*\d+\s+\d+\s+\d+',
+                r'^\s*<table',
+                r'^\s*\|',
             ]
         ):
             table_start = i
             break
 
-    # Find provider section
+    # Find sections
     provider_start = len(lines)
-    for i, line in enumerate(lines):
-        if 'поставщик' in line.lower() or 'продавец' in line.lower():
-            provider_start = i
-            break
-
-    # Find bank section
+    customer_start = len(lines)
     bank_start = len(lines)
-    for i, line in enumerate(lines):
-        if 'банк' in line.lower():
-            bank_start = i
-            break
 
-    return {
-        'header': '\n'.join(lines[:min(table_start, provider_start, bank_start)]),
-        'provider': '\n'.join(lines[provider_start:table_start]),
-        'bank': '\n'.join(lines[bank_start:table_start]),
+    for i, line in enumerate(lines):
+        line_l = line.lower()
+        if provider_start == len(lines) and any(kw in line_l for kw in ['поставщик', 'продавец', 'исполнитель']):
+            provider_start = i
+        if customer_start == len(lines) and any(kw in line_l for kw in ['заказчик', 'покупатель', 'получатель']):
+            customer_start = i
+        if bank_start == len(lines) and 'банк' in line_l:
+            bank_start = i
+
+    sections = sorted([
+        ('provider', provider_start),
+        ('customer', customer_start),
+        ('bank', bank_start),
+        ('table', table_start)
+    ], key=lambda x: x[1])
+
+    result = {
+        'header': '\n'.join(lines[:min(provider_start, customer_start, bank_start, table_start)]),
+        'provider': '',
+        'customer': '',
+        'bank': '',
         'table': '\n'.join(lines[table_start:]),
     }
+
+    for i in range(len(sections) - 1):
+        name, start = sections[i]
+        next_name, next_start = sections[i+1]
+        if start < len(lines):
+            result[name] = '\n'.join(lines[start:next_start])
+
+    return result
 
 
 def to_docx(pages: List[Dict]) -> BytesIO:
