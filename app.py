@@ -11,6 +11,7 @@ from pathlib import Path
 import config
 from api_client import PaddleOCRClient
 from vllm_processor import VLLMProcessor
+from classic_processor import ClassicProcessor
 import converters
 
 # Configure logging
@@ -26,10 +27,13 @@ app.secret_key = config.SECRET_KEY
 
 ocr_client = PaddleOCRClient()
 vllm_processor = VLLMProcessor()
+classic_processor = ClassicProcessor()
 
 def get_processor(task_id):
     if task_id in vllm_processor.tasks:
         return vllm_processor
+    if task_id in classic_processor.tasks:
+        return classic_processor
     return ocr_client
 
 if not os.path.exists(config.UPLOAD_FOLDER):
@@ -93,6 +97,8 @@ def upload_file():
                             try:
                                 if model_name == 'paddle-default':
                                     job_data = ocr_client.submit_job(z_filename, file_content, None, detect_seal)
+                                elif model_name in ['tesseract', 'easyocr', 'pyocr']:
+                                    job_data = classic_processor.submit_job(z_filename, file_content, model_name)
                                 else:
                                     job_data = vllm_processor.submit_job(z_filename, file_content, model_name)
                                 session['tasks'].append({'task_id': job_data['job_id'], 'filename': z_filename})
@@ -109,6 +115,8 @@ def upload_file():
                 file_content = file.read()
                 if model_name == 'paddle-default':
                     job_data = ocr_client.submit_job(filename, file_content, file.content_type, detect_seal)
+                elif model_name in ['tesseract', 'easyocr', 'pyocr']:
+                    job_data = classic_processor.submit_job(filename, file_content, model_name)
                 else:
                     job_data = vllm_processor.submit_job(filename, file_content, model_name)
                 session['tasks'].append({'task_id': job_data['job_id'], 'filename': filename})
@@ -191,7 +199,7 @@ def success(task_id):
 def get_image(task_id, page_num):
     try:
         processor = get_processor(task_id)
-        if processor == vllm_processor:
+        if processor == vllm_processor or processor == classic_processor:
             img_data = processor.get_image(task_id, page_num)
             if img_data:
                 return send_file(img_data, mimetype='image/png')
@@ -209,7 +217,7 @@ def get_image(task_id, page_num):
 def list_seals(task_id):
     try:
         processor = get_processor(task_id)
-        if processor == vllm_processor:
+        if processor == vllm_processor or processor == classic_processor:
             return jsonify({"seals": []})
         return jsonify(ocr_client.list_seals(task_id))
     except Exception as e:
@@ -220,7 +228,7 @@ def list_seals(task_id):
 def get_seal(task_id, filename):
     try:
         processor = get_processor(task_id)
-        if processor == vllm_processor:
+        if processor == vllm_processor or processor == classic_processor:
             return "Печать не найдена", 404
         response = ocr_client.get_seal(task_id, filename)
         response.raise_for_status()

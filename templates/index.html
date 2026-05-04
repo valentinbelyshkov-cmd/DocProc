@@ -75,10 +75,17 @@
                         Выберите модель обработки
                     </label>
                     <select name="model_name" id="model_name" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <option value="paddle-default">PaddleOCR (Стандартная)</option>
-                        <option value="glm-ocr">GLM-OCR</option>
-                        <option value="paddle-vl">PaddleOCR-VL-1.5</option>
-                        <option value="openrouter">OpenRouter API</option>
+                        <optgroup label="Классические методы (Старые)" class="bg-gray-100 dark:bg-gray-800 font-bold">
+                            <option value="paddle-default">PaddleOCR (Классический)</option>
+                            <option value="tesseract">Tesseract OCR</option>
+                            <option value="easyocr">EasyOCR</option>
+                            <option value="pyocr">PyOCR</option>
+                        </optgroup>
+                        <optgroup label="Современные модели (VLLM)" class="bg-gray-100 dark:bg-gray-800 font-bold">
+                            <option value="glm-ocr">GLM-OCR</option>
+                            <option value="paddle-vl">PaddleOCR-VL-1.5</option>
+                            <option value="openrouter">OpenRouter (GPT-4o/Gemini)</option>
+                        </optgroup>
                     </select>
                 </div>
 
