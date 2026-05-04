@@ -1,13 +1,52 @@
-.DS_Store
-uploads/
-output/
+# Python
 __pycache__/
-app.log
-models/
-*.pyc
-.env
-.venv
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
 venv/
-node_modules/
+ENV/
+env/
+.venv/
+
+# IDE
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+uploads/
+output/*.json
+output/*.md
+*.log
+
+# Test files
+tests/
+.pytest_cache/
+
+# Temporary files
+*.tmp
+*.temp
