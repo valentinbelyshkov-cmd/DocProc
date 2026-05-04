@@ -254,7 +254,7 @@ class OllamaModel(BaseVLLMModel):
                 return {"text": content, "tables": []}
                 
         except requests.exceptions.ConnectionError:
-            msg = f"Ollama не подключен по адресу {self.base_url}. Запустите: ollama serve"
+            msg = f"Ollama не подключен по адресу {self.base_url}. Проверьте, запущен ли Ollama (ollama serve) и разрешены ли подключения из Docker (установите OLLAMA_HOST=0.0.0.0)."
             logger.error(msg)
             return {"text": msg, "tables": []}
         except requests.exceptions.Timeout:

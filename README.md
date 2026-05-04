@@ -252,6 +252,11 @@ docker run -p 8011:8011 -v /path/to/your/pdfs:/app/batch ocr-pdf-docx
 #### OCR Engine-Specific Issues
 - **EasyOCR**: Ensure PyTorch is installed correctly for your system (CPU or GPU version).
 - **PyOCR**: Make sure Tesseract is installed as PyOCR relies on it.
+- **Ollama (GLM-OCR)**:
+    - If running in Docker, the app tries to reach Ollama at `http://host.docker.internal:11434`.
+    - Ensure Ollama is running on your host machine.
+    - If you get connection errors, you may need to set the environment variable `OLLAMA_HOST=0.0.0.0` on your host machine to allow connections from Docker containers.
+    - On Windows, you can set this in System Environment Variables and restart Ollama.
 
 ### Common Errors
 
