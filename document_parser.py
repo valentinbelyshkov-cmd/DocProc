@@ -436,7 +436,14 @@ def parse_ocr_result(pages: List[Dict]) -> Dict[str, Any]:
     if fields:
         type_confidence = sum(f['confidence'] for f in fields) / len(fields)
     
-    tables = extract_numerical_tables(full_text)
+    # Use pre-extracted tables if available, otherwise extract from text
+    tables = []
+    for page in pages:
+        if 'tables' in page and page['tables']:
+            tables.extend(page['tables'])
+    
+    if not tables:
+        tables = extract_numerical_tables(full_text)
     
     return {
         'document_type': doc_type,

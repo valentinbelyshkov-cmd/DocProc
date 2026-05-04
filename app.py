@@ -10,6 +10,7 @@ from pathlib import Path
 
 import config
 from api_client import PaddleOCRClient
+from vllm_processor import VLLMProcessor
 import converters
 
 # Configure logging
@@ -24,6 +25,12 @@ app.config.from_object(config)
 app.secret_key = config.SECRET_KEY
 
 ocr_client = PaddleOCRClient()
+vllm_processor = VLLMProcessor()
+
+def get_processor(task_id):
+    if task_id in vllm_processor.tasks:
+        return vllm_processor
+    return ocr_client
 
 if not os.path.exists(config.UPLOAD_FOLDER):
     os.makedirs(config.UPLOAD_FOLDER)
@@ -52,7 +59,8 @@ def upload_file():
         flash('Файлы не выбраны', 'error')
         return redirect(url_for('index'))
 
-    if not ocr_client.is_available():
+    model_name = request.form.get('model_name', 'paddle-default')
+    if model_name == 'paddle-default' and not ocr_client.is_available():
         flash('Сервис OCR недоступен. Пожалуйста, попробуйте позже.', 'error')
         logger.error("PaddleOCR API is not available")
         return redirect(url_for('index'))
@@ -62,6 +70,7 @@ def upload_file():
     
     processed_any = False
     detect_seal = request.form.get('detect_seal') == 'on'
+    model_name = request.form.get('model_name', 'paddle-default')
     
     for file in uploaded_files:
         if not file.filename or not allowed_file(file.filename):
@@ -82,7 +91,10 @@ def upload_file():
                         with z.open(zinfo) as zf:
                             file_content = zf.read()
                             try:
-                                job_data = ocr_client.submit_job(z_filename, file_content, None, detect_seal)
+                                if model_name == 'paddle-default':
+                                    job_data = ocr_client.submit_job(z_filename, file_content, None, detect_seal)
+                                else:
+                                    job_data = vllm_processor.submit_job(z_filename, file_content, model_name)
                                 session['tasks'].append({'task_id': job_data['job_id'], 'filename': z_filename})
                                 processed_any = True
                             except Exception as e:
@@ -94,11 +106,15 @@ def upload_file():
                 flash(f"Ошибка при обработке ZIP архива {filename}: {e}", 'error')
         else:
             try:
-                job_data = ocr_client.submit_job(filename, file.read(), file.content_type, detect_seal)
+                file_content = file.read()
+                if model_name == 'paddle-default':
+                    job_data = ocr_client.submit_job(filename, file_content, file.content_type, detect_seal)
+                else:
+                    job_data = vllm_processor.submit_job(filename, file_content, model_name)
                 session['tasks'].append({'task_id': job_data['job_id'], 'filename': filename})
                 processed_any = True
             except Exception as e:
-                logger.error(f"Error sending file to PaddleOCR API: {e}")
+                logger.error(f"Error sending file to OCR backend: {e}")
                 flash(f"Ошибка подключения к OCR бэкенду для {filename}: {e}", 'error')
                 continue
 
@@ -119,7 +135,8 @@ def status_page():
 @app.route('/api/task_status/<task_id>')
 def task_status(task_id):
     try:
-        job_data = ocr_client.get_status(task_id)
+        processor = get_processor(task_id)
+        job_data = processor.get_status(task_id)
         status_map = {'queued': 'processing', 'processing': 'processing', 'completed': 'completed', 'failed': 'failed', 'cancelled': 'failed'}
         status = status_map.get(job_data['status'], 'processing')
         
@@ -152,9 +169,10 @@ def success(task_id):
     processing_time = session.get(f'processing_time_{task_id}', 'Н/Д')
     
     try:
-        job_data = ocr_client.get_status(task_id)
+        processor = get_processor(task_id)
+        job_data = processor.get_status(task_id)
         detect_seal_enabled = bool(job_data.get('detect_seal', 0))
-        result_data = ocr_client.get_result(task_id)
+        result_data = processor.get_result(task_id)
         
         # Auto-save results
         with open(os.path.join(config.OUTPUT_FOLDER, f"{task_id}.json"), "w", encoding="utf-8") as f:
@@ -172,6 +190,14 @@ def success(task_id):
 @app.route('/api/image/<task_id>/<int:page_num>')
 def get_image(task_id, page_num):
     try:
+        processor = get_processor(task_id)
+        if processor == vllm_processor:
+            img_data = processor.get_image(task_id, page_num)
+            if img_data:
+                return send_file(img_data, mimetype='image/png')
+            else:
+                return "Изображение не найдено", 404
+        
         response = ocr_client.get_image(task_id, page_num)
         response.raise_for_status()
         return send_file(response.raw, mimetype='image/png')
@@ -182,6 +208,9 @@ def get_image(task_id, page_num):
 @app.route('/api/seals/<task_id>')
 def list_seals(task_id):
     try:
+        processor = get_processor(task_id)
+        if processor == vllm_processor:
+            return jsonify({"seals": []})
         return jsonify(ocr_client.list_seals(task_id))
     except Exception as e:
         logger.error(f"Error listing seals: {e}")
@@ -190,6 +219,9 @@ def list_seals(task_id):
 @app.route('/api/seal/<task_id>/<filename>')
 def get_seal(task_id, filename):
     try:
+        processor = get_processor(task_id)
+        if processor == vllm_processor:
+            return "Печать не найдена", 404
         response = ocr_client.get_seal(task_id, filename)
         response.raise_for_status()
         return send_file(response.raw, mimetype='image/png')
@@ -201,7 +233,8 @@ def get_seal(task_id, filename):
 def download_result(task_id):
     fmt = request.args.get('format', 'md').lower()
     try:
-        result_data = ocr_client.get_result(task_id)
+        processor = get_processor(task_id)
+        result_data = processor.get_result(task_id)
         pages = result_data.get('pages', [])
         
         if fmt == 'docx':
@@ -220,7 +253,8 @@ def download_result(task_id):
 @app.route('/api/extracted_data/<task_id>')
 def get_extracted_data(task_id):
     try:
-        result_data = ocr_client.get_result(task_id)
+        processor = get_processor(task_id)
+        result_data = processor.get_result(task_id)
         pages = result_data.get('pages', [])
         extracted = converters.get_extracted_data(pages)
         return jsonify(extracted)
