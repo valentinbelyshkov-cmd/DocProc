@@ -1,0 +1,237 @@
+{
+  "document_type": "Счет-фактура",
+  "document_type_display": "Счет-фактура",
+  "description": "Документ, подтверждающий отгрузку товаров или оказание услуг с выделением НДС",
+  "is_tax_document": true,
+  
+  "fields": {
+    "header": {
+      "title": "Реквизиты счета-фактуры",
+      "fields": [
+        {
+          "name": "Номер счета-фактуры",
+          "key": "номер",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]+$",
+          "label": "Счет-фактура №"
+        },
+        {
+          "name": "Дата выставления",
+          "key": "дата",
+          "type": "date",
+          "required": true,
+          "format": "DD.MM.YYYY",
+          "label": "от"
+        }
+      ]
+    },
+    "provider": {
+      "title": "Продавец",
+      "fields": [
+        {
+          "name": "Наименование",
+          "key": "продавец",
+          "type": "string",
+          "required": true,
+          "validation": "org_name"
+        },
+        {
+          "name": "ИНН",
+          "key": "инн_продавца",
+          "type": "number",
+          "required": true,
+          "length": 10,
+          "validation": "inn"
+        },
+        {
+          "name": "КПП",
+          "key": "кпп_продавца",
+          "type": "number",
+          "required": false,
+          "length": 9,
+          "validation": "kpp"
+        },
+        {
+          "name": "Адрес",
+          "key": "адрес_продавца",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "Грузоотправитель",
+          "key": "грузоотправитель",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    "customer": {
+      "title": "Покупатель",
+      "fields": [
+        {
+          "name": "Наименование",
+          "key": "покупатель",
+          "type": "string",
+          "required": true,
+          "validation": "org_name"
+        },
+        {
+          "name": "ИНН",
+          "key": "инн_покупателя",
+          "type": "number",
+          "required": true,
+          "length": 10,
+          "validation": "inn"
+        },
+        {
+          "name": "КПП",
+          "key": "кпп_покупателя",
+          "type": "number",
+          "required": false,
+          "length": 9,
+          "validation": "kpp"
+        },
+        {
+          "name": "Грузополучатель",
+          "key": "грузополучатель",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    "payment_info": {
+      "title": "К платежно-расчетному документу",
+      "fields": [
+        {
+          "name": "Номер платежного поручения",
+          "key": "номер_платежа",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "Дата платежа",
+          "key": "дата_платежа",
+          "type": "date",
+          "required": false,
+          "format": "DD.MM.YYYY"
+        }
+      ]
+    }
+  },
+
+  "table": {
+    "enabled": true,
+    "title": "Таблица товаров/услуг",
+    "columns": [
+      {
+        "name": "№",
+        "key": "num",
+        "width": 4,
+        "align": "center"
+      },
+      {
+        "name": "Наименование товара",
+        "key": "наименование",
+        "width": 30
+      },
+      {
+        "name": "Ед. изм.",
+        "key": "единица",
+        "width": 8,
+        "align": "center"
+      },
+      {
+        "name": "Кол-во",
+        "key": "количество",
+        "width": 8,
+        "align": "center"
+      },
+      {
+        "name": "Цена",
+        "key": "цена",
+        "width": 10,
+        "align": "right"
+      },
+      {
+        "name": "Сумма",
+        "key": "сумма",
+        "width": 10,
+        "align": "right"
+      },
+      {
+        "name": "НДС",
+        "key": "ндс_ставка",
+        "width": 6,
+        "align": "center"
+      },
+      {
+        "name": "НДС сумма",
+        "key": "ндс",
+        "width": 10,
+        "align": "right"
+      },
+      {
+        "name": "Всего",
+        "key": "всего",
+        "width": 10,
+        "align": "right"
+      }
+    ],
+    "tax_enabled": true
+  },
+
+  "footer": {
+    "title": "Итоги счета-фактуры",
+    "fields": [
+      {
+        "name": "Итого стоимость",
+        "key": "итого_стоимость",
+        "type": "currency",
+        "required": true
+      },
+      {
+        "name": "Итого НДС",
+        "key": "итого_ндс",
+        "type": "currency",
+        "required": true
+      },
+      {
+        "name": "Всего к оплате",
+        "key": "всего",
+        "type": "currency",
+        "required": true
+      }
+    ]
+  },
+
+  "signatures": {
+    "enabled": true,
+    "signatories": [
+      {
+        "name": "Руководитель",
+        "key": "руководитель",
+        "position": "Директор"
+      },
+      {
+        "name": "Главный бухгалтер",
+        "key": "главный_бухгалтер",
+        "position": "Главный бухгалтер"
+      }
+    ]
+  },
+
+  "additional_info": {
+    "show_instructor": false,
+    "show_shipper_details": true,
+    "show_recipient_details": true
+  },
+
+  "styling": {
+    "theme": "tax_document",
+    "show_logo": false,
+    "show_qr_code": true,
+    "watermark": false,
+    "border_style": "double"
+  }
+}

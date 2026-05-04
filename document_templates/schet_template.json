@@ -1,0 +1,199 @@
+{
+  "document_type": "Счет",
+  "document_type_display": "Счет на оплату",
+  "description": "Платежный документ для оплаты товаров или услуг",
+  
+  "fields": {
+    "header": {
+      "title": "Реквизиты счета",
+      "fields": [
+        {
+          "name": "Номер счета",
+          "key": "номер",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]+$",
+          "label": "№"
+        },
+        {
+          "name": "Дата счета",
+          "key": "дата",
+          "type": "date",
+          "required": true,
+          "format": "DD.MM.YYYY",
+          "label": "от"
+        }
+      ]
+    },
+    "provider": {
+      "title": "Поставщик",
+      "fields": [
+        {
+          "name": "Наименование",
+          "key": "поставщик",
+          "type": "string",
+          "required": true,
+          "validation": "org_name"
+        },
+        {
+          "name": "ИНН",
+          "key": "инн",
+          "type": "number",
+          "required": true,
+          "length": 10,
+          "validation": "inn"
+        },
+        {
+          "name": "КПП",
+          "key": "кпп",
+          "type": "number",
+          "required": false,
+          "length": 9,
+          "validation": "kpp"
+        },
+        {
+          "name": "Адрес",
+          "key": "адрес",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    "bank": {
+      "title": "Банковские реквизиты",
+      "fields": [
+        {
+          "name": "БИК",
+          "key": "бик",
+          "type": "number",
+          "required": false,
+          "length": 9,
+          "validation": "bik"
+        },
+        {
+          "name": "Наименование банка",
+          "key": "банк",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "Расчетный счет",
+          "key": "расчетный_счет",
+          "type": "number",
+          "required": false,
+          "length": 20,
+          "prefix": "407",
+          "validation": "account"
+        },
+        {
+          "name": "Корр. счет",
+          "key": "корр_счет",
+          "type": "number",
+          "required": false,
+          "length": 20
+        }
+      ]
+    },
+    "basis": {
+      "title": "Основание",
+      "fields": [
+        {
+          "name": "Договор",
+          "key": "основание",
+          "type": "string",
+          "required": false,
+          "format": "№ от DD.MM.YYYY"
+        }
+      ]
+    }
+  },
+
+  "table": {
+    "enabled": true,
+    "title": "Таблица товаров/услуг",
+    "columns": [
+      {
+        "name": "№",
+        "key": "num",
+        "width": 5,
+        "align": "center"
+      },
+      {
+        "name": "Наименование",
+        "key": "наименование",
+        "width": 40
+      },
+      {
+        "name": "Ед. изм.",
+        "key": "единица",
+        "width": 10,
+        "align": "center"
+      },
+      {
+        "name": "Кол-во",
+        "key": "количество",
+        "width": 10,
+        "align": "center"
+      },
+      {
+        "name": "Цена",
+        "key": "цена",
+        "width": 12,
+        "align": "right"
+      },
+      {
+        "name": "Сумма",
+        "key": "сумма",
+        "width": 12,
+        "align": "right"
+      }
+    ]
+  },
+
+  "footer": {
+    "title": "Итоги",
+    "fields": [
+      {
+        "name": "Итого",
+        "key": "итого",
+        "type": "currency",
+        "required": true
+      },
+      {
+        "name": "НДС",
+        "key": "ндс",
+        "type": "currency",
+        "required": false
+      },
+      {
+        "name": "Всего к оплате",
+        "key": "всего",
+        "type": "currency",
+        "required": true
+      }
+    ]
+  },
+
+  "signatures": {
+    "enabled": true,
+    "signatories": [
+      {
+        "name": "Руководитель",
+        "key": "руководитель",
+        "position": "Директор"
+      },
+      {
+        "name": "Главный бухгалтер",
+        "key": "главный_бухгалтер",
+        "position": "Главный бухгалтер"
+      }
+    ]
+  },
+
+  "styling": {
+    "theme": "classic",
+    "show_logo": true,
+    "show_qr_code": false,
+    "watermark": false
+  }
+}
