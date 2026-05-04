@@ -41,6 +41,7 @@ class VLLMProcessor(BaseProcessor):
         'ollama-glm': 'ollama',
         'ollama': 'ollama',
         'noctrix': 'noctrix',
+        'lightonocr': 'lightonocr',
     }
 
     def __init__(self):

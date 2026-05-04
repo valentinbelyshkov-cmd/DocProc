@@ -8,6 +8,7 @@ from models.openrouter_model import OpenRouterModel, OpenRouterClaudeModel, Open
 from models.glm_model import GLMOCRModel
 from models.paddle_vl_model import PaddleOCRVLModel
 from models.ollama_model import OllamaModel, NoctrixLightOnOCRModel
+from models.lighton_ocr_model import LightOnOCRModel
 import config as app_config
 
 
@@ -90,6 +91,7 @@ class ModelRegistry:
             'ollama': 'Ollama (Local)',
             'ollama-glm': 'Ollama GLM-OCR',
             'noctrix': 'Noctrix LightOnOCR',
+            'lightonocr': 'LightOnOCR-2 (Ollama)',
         }
         return names.get(name, name)
 
@@ -103,3 +105,4 @@ ModelRegistry.register('paddle-vl', PaddleOCRVLModel)
 ModelRegistry.register('ollama', OllamaModel)
 ModelRegistry.register('ollama-glm', OllamaModel)
 ModelRegistry.register('noctrix', NoctrixLightOnOCRModel)
+ModelRegistry.register('lightonocr', LightOnOCRModel)

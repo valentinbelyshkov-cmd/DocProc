@@ -1,0 +1,290 @@
+{
+  "document_type": "УПД",
+  "document_type_display": "Универсальный передаточный документ",
+  "description": "Документ, совмещающий функции счета-фактуры и акта (товарной накладной)",
+  "is_tax_document": true,
+  "combines": ["Счет-фактура", "Акт", "Накладная"],
+  
+  "fields": {
+    "header": {
+      "title": "Реквизиты УПД",
+      "fields": [
+        {
+          "name": "Номер документа",
+          "key": "номер",
+          "type": "string",
+          "required": true,
+          "pattern": "^[0-9]+$",
+          "label": "УПД №"
+        },
+        {
+          "name": "Дата составления",
+          "key": "дата",
+          "type": "date",
+          "required": true,
+          "format": "DD.MM.YYYY",
+          "label": "от"
+        }
+      ]
+    },
+    "basis": {
+      "title": "Основание",
+      "fields": [
+        {
+          "name": "Договор",
+          "key": "основание",
+          "type": "string",
+          "required": false,
+          "format": "Договор № от DD.MM.YYYY"
+        }
+      ]
+    },
+    "provider": {
+      "title": "Продавец (Поставщик)",
+      "fields": [
+        {
+          "name": "Наименование",
+          "key": "продавец",
+          "type": "string",
+          "required": true,
+          "validation": "org_name"
+        },
+        {
+          "name": "ИНН",
+          "key": "инн_продавца",
+          "type": "number",
+          "required": true,
+          "length": 10,
+          "validation": "inn"
+        },
+        {
+          "name": "КПП",
+          "key": "кпп_продавца",
+          "type": "number",
+          "required": false,
+          "length": 9,
+          "validation": "kpp"
+        },
+        {
+          "name": "Адрес",
+          "key": "адрес_продавца",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "Грузоотправитель",
+          "key": "грузоотправитель",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "Валюта",
+          "key": "валюта",
+          "type": "string",
+          "required": true,
+          "default": "Российский рубль"
+        }
+      ]
+    },
+    "customer": {
+      "title": "Покупатель (Получатель)",
+      "fields": [
+        {
+          "name": "Наименование",
+          "key": "покупатель",
+          "type": "string",
+          "required": true,
+          "validation": "org_name"
+        },
+        {
+          "name": "ИНН",
+          "key": "инн_покупателя",
+          "type": "number",
+          "required": true,
+          "length": 10,
+          "validation": "inn"
+        },
+        {
+          "name": "КПП",
+          "key": "кпп_покупателя",
+          "type": "number",
+          "required": false,
+          "length": 9,
+          "validation": "kpp"
+        },
+        {
+          "name": "Грузополучатель",
+          "key": "грузополучатель",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    "transport": {
+      "title": "Транспортные данные",
+      "fields": [
+        {
+          "name": "Вид транспорта",
+          "key": "вид_транспорта",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "Номер транспортного средства",
+          "key": "номер_транспорта",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  },
+
+  "table": {
+    "enabled": true,
+    "title": "Таблица товаров/услуг",
+    "columns": [
+      {
+        "name": "№",
+        "key": "num",
+        "width": 4,
+        "align": "center"
+      },
+      {
+        "name": "Наименование товара",
+        "key": "наименование",
+        "width": 28
+      },
+      {
+        "name": "Ед. изм.",
+        "key": "единица",
+        "width": 8,
+        "align": "center"
+      },
+      {
+        "name": "Кол-во",
+        "key": "количество",
+        "width": 8,
+        "align": "center"
+      },
+      {
+        "name": "Цена",
+        "key": "цена",
+        "width": 10,
+        "align": "right"
+      },
+      {
+        "name": "Сумма",
+        "key": "сумма",
+        "width": 10,
+        "align": "right"
+      },
+      {
+        "name": "НДС",
+        "key": "ндс_ставка",
+        "width": 6,
+        "align": "center"
+      },
+      {
+        "name": "НДС сумма",
+        "key": "ндс",
+        "width": 8,
+        "align": "right"
+      },
+      {
+        "name": "Всего с НДС",
+        "key": "всего",
+        "width": 10,
+        "align": "right"
+      }
+    ],
+    "tax_enabled": true
+  },
+
+  "footer": {
+    "title": "Итоги УПД",
+    "fields": [
+      {
+        "name": "Итого стоимость",
+        "key": "итого_стоимость",
+        "type": "currency",
+        "required": true
+      },
+      {
+        "name": "Итого НДС",
+        "key": "итого_ндс",
+        "type": "currency",
+        "required": true
+      },
+      {
+        "name": "Всего к оплате",
+        "key": "всего",
+        "type": "currency",
+        "required": true
+      }
+    ]
+  },
+
+  "acceptance": {
+    "enabled": true,
+    "title": "Сведения о передаче товаров/результатов работ",
+    "signatories": [
+      {
+        "name": "Исполнитель (Продавец)",
+        "key": "исполнитель",
+        "position": "Директор"
+      },
+      {
+        "name": "Заказчик (Покупатель)",
+        "key": "заказчик",
+        "position": "Директор"
+      }
+    ],
+    "additional_fields": [
+      {
+        "name": "Дата отгрузки",
+        "key": "дата_отгрузки",
+        "type": "date"
+      },
+      {
+        "name": "Документ подтверждения",
+        "key": "документ_подтверждения",
+        "type": "string"
+      }
+    ]
+  },
+
+  "signatures": {
+    "enabled": true,
+    "signatories": [
+      {
+        "name": "Руководитель продавца",
+        "key": "руководитель_продавца",
+        "position": "Директор"
+      },
+      {
+        "name": "Главный бухгалтер продавца",
+        "key": "главный_бухгалтер_продавца",
+        "position": "Главный бухгалтер"
+      },
+      {
+        "name": "Руководитель покупателя",
+        "key": "руководитель_покупателя",
+        "position": "Директор"
+      }
+    ]
+  },
+
+  "additional_info": {
+    "show_shipper_details": true,
+    "show_recipient_details": true,
+    "show_payment_info": true
+  },
+
+  "styling": {
+    "theme": "universal_document",
+    "show_logo": false,
+    "show_qr_code": true,
+    "watermark": false,
+    "border_style": "solid"
+  }
+}
