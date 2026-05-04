@@ -47,6 +47,31 @@ def allowed_file(filename):
         return False
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
+@app.route('/api/health')
+def api_health():
+    """API endpoint for frontend to check PaddleOCR status"""
+    try:
+        model_status = ocr_client.get_model_status()
+        if model_status:
+            return jsonify({
+                "status": "ok" if model_status.get('status') == 'ok' else "model_not_loaded",
+                "model_loaded": model_status.get('model_loaded', False),
+                "model_error": model_status.get('model_error', None),
+                "PaddleOCR": model_status.get('PaddleOCR', False)
+            })
+        return jsonify({
+            "status": "unavailable",
+            "model_loaded": False,
+            "model_error": "Unable to connect to PaddleOCR service"
+        })
+    except Exception as e:
+        logger.error(f"Error checking model status: {e}")
+        return jsonify({
+            "status": "error",
+            "model_loaded": False,
+            "model_error": str(e)
+        })
+
 @app.route('/')
 def index():
     tasks = session.get('tasks', [])
@@ -64,10 +89,19 @@ def upload_file():
         return redirect(url_for('index'))
 
     model_name = request.form.get('model_name', 'paddle-default')
-    if model_name == 'paddle-default' and not ocr_client.is_available():
-        flash('Сервис OCR недоступен. Пожалуйста, попробуйте позже.', 'error')
-        logger.error("PaddleOCR API is not available")
-        return redirect(url_for('index'))
+    model_status = None
+    
+    if model_name == 'paddle-default':
+        if not ocr_client.is_available():
+            # Get detailed model status for error message
+            model_status = ocr_client.get_model_status()
+            if model_status and model_status.get('model_error'):
+                error_msg = f"Сервис OCR недоступен. Ошибка загрузки модели: {model_status.get('model_error')}"
+            else:
+                error_msg = "Сервис OCR недоступен. Пожалуйста, попробуйте позже."
+            flash(error_msg, 'error')
+            logger.error(f"PaddleOCR API is not available. Model status: {model_status}")
+            return redirect(url_for('index'))
 
     if 'tasks' not in session:
         session['tasks'] = []
@@ -145,6 +179,14 @@ def task_status(task_id):
     try:
         processor = get_processor(task_id)
         job_data = processor.get_status(task_id)
+        
+        # For PaddleOCR jobs, check model status if job failed
+        model_error = None
+        if processor == ocr_client and job_data['status'] == 'failed':
+            model_status = ocr_client.get_model_status()
+            if model_status and model_status.get('model_error'):
+                model_error = model_status.get('model_error')
+        
         status_map = {'queued': 'processing', 'processing': 'processing', 'completed': 'completed', 'failed': 'failed', 'cancelled': 'failed'}
         status = status_map.get(job_data['status'], 'processing')
         
@@ -162,7 +204,11 @@ def task_status(task_id):
                 session[f'processing_time_{task_id}'] = round(job_data['updated_at'] - job_data['created_at'], 2)
         
         if status == 'failed':
-            result["error"] = job_data.get('error', 'Неизвестная ошибка')
+            # Include model error in the error message if available
+            error_msg = job_data.get('error', 'Неизвестная ошибка')
+            if model_error:
+                error_msg = f"Ошибка загрузки модели OCR: {model_error}"
+            result["error"] = error_msg
             result["redirect"] = url_for('index')
             
         return jsonify(result)

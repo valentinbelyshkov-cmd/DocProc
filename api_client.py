@@ -19,9 +19,23 @@ class PaddleOCRClient:
     def is_available(self):
         try:
             response = requests.get(f"{self.base_url}/health", timeout=5)
-            return response.status_code == 200
+            if response.status_code == 200:
+                data = response.json()
+                # Check if model is actually loaded
+                return data.get('status') == 'ok' and data.get('PaddleOCR', False)
+            return False
         except (ConnectionError, Timeout, RequestException):
             return False
+
+    def get_model_status(self):
+        """Get detailed model status from health endpoint"""
+        try:
+            response = requests.get(f"{self.base_url}/health", timeout=5)
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except (ConnectionError, Timeout, RequestException):
+            return None
 
     def get_status(self, job_id):
         response = requests.get(f"{self.base_url}/ocr/{job_id}")

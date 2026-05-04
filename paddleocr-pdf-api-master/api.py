@@ -38,11 +38,17 @@ def shutdown():
 
 @app.get("/health")
 def health_check():
+    from models import ModelLoader, PaddleOCR, PPStructureV3, draw_ocr, _import_errors
+    model_loaded = ModelLoader.is_model_loaded()
+    model_error = ModelLoader.get_load_error() if not model_loaded else None
+    
     return {
-        "status": "ok",
+        "status": "ok" if model_loaded else "model_not_loaded",
         "PaddleOCR": PaddleOCR is not None,
         "PPStructureV3": PPStructureV3 is not None,
         "draw_ocr": draw_ocr is not None,
+        "model_loaded": model_loaded,
+        "model_error": model_error,
         "import_errors": _import_errors
     }
 
@@ -101,6 +107,7 @@ def get_job_status(job_id: str):
         "error": job["error"],
         "created_at": job["created_at"],
         "updated_at": job["updated_at"],
+        "model_loaded": True  # Model status from this API instance
     }
 
 @app.get("/ocr/{job_id}/image/{page_num}")

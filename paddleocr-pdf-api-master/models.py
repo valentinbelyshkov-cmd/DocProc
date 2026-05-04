@@ -38,10 +38,12 @@ draw_OCR = draw_ocr
 class ModelLoader:
     _ocr_model = None
     _layout_engine = None
+    _load_failed = False
+    _load_error = None
 
     @classmethod
-    def load_ocr_model(cls):
-        if cls._ocr_model is None:
+    def load_ocr_model(cls, force_reload=False):
+        if cls._ocr_model is None or force_reload:
             if PaddleOCR is None:
                 raise ImportError("PaddleOCR could not be imported. Please check installation and python path.")
             print("Loading PaddleOCR model...")
@@ -52,13 +54,25 @@ class ModelLoader:
                     use_doc_unwarping=True,
                     lang='ru'
                 )
+                cls._load_failed = False
+                cls._load_error = None
                 print("Model loaded successfully.")
             except Exception as e:
+                cls._load_failed = True
+                cls._load_error = str(e)
                 print(f"Error during PaddleOCR initialization: {e}")
                 import traceback
                 traceback.print_exc()
                 raise
         return cls._ocr_model
+
+    @classmethod
+    def is_model_loaded(cls):
+        return cls._ocr_model is not None and not cls._load_failed
+
+    @classmethod
+    def get_load_error(cls):
+        return cls._load_error
 
     @classmethod
     def load_layout_engine(cls):
