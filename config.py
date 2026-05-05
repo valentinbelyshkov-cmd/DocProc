@@ -49,7 +49,7 @@ OCR_MODEL_CONFIG = {
     'num_ctx': int(os.environ.get('OLLAMA_NUM_CTX', '8192')),
 
     # Timeout settings
-    'request_timeout': int(os.environ.get('OCR_REQUEST_TIMEOUT', '120')),
+    'request_timeout': int(os.environ.get('OCR_REQUEST_TIMEOUT', '300')),
     'max_retries': int(os.environ.get('OCR_MAX_RETRIES', '3')),
 }
 

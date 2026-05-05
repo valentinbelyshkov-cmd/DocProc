@@ -65,7 +65,7 @@ class OpenRouterModel(BaseVLLMModel):
         
         try:
             logger.info(f"Sending request to OpenRouter API (model: {self.model})")
-            response = requests.post(self.url, headers=headers, json=payload, timeout=60)
+            response = requests.post(self.url, headers=headers, json=payload, timeout=config.OCR_MODEL_CONFIG.get('request_timeout', 300))
             response.raise_for_status()
             
             result = response.json()
@@ -136,7 +136,7 @@ class GLMOCRModel(BaseVLLMModel):
         
         try:
             logger.info(f"Sending request to ZhipuAI GLM API: {self.url}")
-            response = requests.post(self.url, headers=headers, json=payload, timeout=60)
+            response = requests.post(self.url, headers=headers, json=payload, timeout=config.OCR_MODEL_CONFIG.get('request_timeout', 300))
             response.raise_for_status()
             
             result = response.json()
@@ -181,7 +181,7 @@ class PaddleOCRVLModel(BaseVLLMModel):
         
         try:
             logger.info(f"Sending request to PaddleOCR-VL at {self.endpoint_url}")
-            response = requests.post(self.endpoint_url, files=files, timeout=60)
+            response = requests.post(self.endpoint_url, files=files, timeout=config.OCR_MODEL_CONFIG.get('request_timeout', 300))
             response.raise_for_status()
             data = response.json()
             logger.info("Received response from PaddleOCR-VL")
@@ -229,7 +229,7 @@ class OllamaModel(BaseVLLMModel):
             response = requests.post(
                 f"{self.base_url}/api/chat",
                 json=payload,
-                timeout=120
+                timeout=config.OCR_MODEL_CONFIG.get('request_timeout', 300)
             )
             response.raise_for_status()
             
@@ -299,7 +299,7 @@ class NoctrixLightOnOCRModel(BaseVLLMModel):
             response = requests.post(
                 f"{self.base_url}/api/chat",
                 json=payload,
-                timeout=180
+                timeout=config.OCR_MODEL_CONFIG.get('request_timeout', 300)
             )
             response.raise_for_status()
             

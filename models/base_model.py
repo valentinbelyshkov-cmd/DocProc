@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import logging
 import re
 import PIL.Image
+import config as app_config
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class ModelConfig:
     presence_penalty: float = 0.0
 
     # Timeout for API calls
-    timeout: int = 60
+    timeout: int = app_config.OCR_MODEL_CONFIG.get('request_timeout', 120)
 
     # Retry settings
     max_retries: int = 3
