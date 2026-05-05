@@ -59,14 +59,11 @@ class OllamaModel(BaseModel):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
 
-        user_content = prompt
+        user_message = {"role": "user", "content": prompt}
         if base64_image:
-            user_content = [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}}
-            ]
+            user_message["images"] = [base64_image]
 
-        messages.append({"role": "user", "content": user_content})
+        messages.append(user_message)
 
         payload = {
             "model": self.model_name,
