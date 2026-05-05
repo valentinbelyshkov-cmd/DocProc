@@ -201,7 +201,7 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'БИК',
             'patterns': [
-                r'(?:бик|bik).*?(\d{9})',
+                r'(?:бик|bik)[\s\n:<>/td]+(\d{9})',
                 r'\b(\d{9})\b(?=\s*(?:кпп|инн|р/с|сч|$))',
             ],
             'required': False,
@@ -210,10 +210,11 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Наименование банка',
             'patterns': [
-                r'(?:банк\s+(?:получателя)?|банк получателя).*?([А-ЯЁ\w\s"-]+?[Б|b]анк[А-ЯЁ\w\s"-]*)',
+                r'(?:банк\s+(?:получателя)?|банк получателя)[\s\n:<>/td]+([А-ЯЁ\w\s"-]+?[Б|b]анк[А-ЯЁ\w\s"-]*)',
                 r'([А-ЯЁ][\w\s"-]{0,30}[Б|b]анк[\w\s"-]{0,30})',
-                r'(?:[Б|b]анк\s+(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+))?([^\n<]+)',
+                r'(?:[Б|b]анк\s+(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+))([^\n<]+)',
                 r'(ПАО\s+"[^"]+"|ПAO\s+"[^"]+")',
+                r'([А-ЯЁa-z]+(?:\s+[А-ЯЁa-z]+)?\s+\((?:ПАО|АО|ООО|ЗАО)\))',
             ],
             'required': False,
             'region': 'bank'
@@ -221,7 +222,7 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Расчетный счет',
             'patterns': [
-                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т|сч\.?\s*№).*?(4\d{18,19})',
+                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т|сч\.?\s*№)[\s\n:<>/td]+(4\d{18,19})',
                 r'(?<!\d)(4\d{18,19})(?!\d)',
             ],
             'required': False,
@@ -230,7 +231,7 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Корр. счет',
             'patterns': [
-                r'(?:корр[.,]?\s*сч[её]т|к/с|сч\.?\s*№).*?(301\d{16,17})',
+                r'(?:корр[.,]?\s*сч[её]т|к/с|сч\.?\s*№)[\s\n:<>/td]+(301\d{16,17})',
                 r'(?<!\d)(301\d{16,17})(?!\d)',
             ],
             'required': False,
@@ -258,17 +259,10 @@ class SchetHandler(BaseDocumentHandler):
 
     OPTIONAL_FIELDS = [
         {
-            'name': 'КПП',
-            'patterns': [
-                r'кпп\s*[:\-]?\s*(\d{9})',
-            ],
-            'required': False,
-            'region': 'provider'
-        },
-        {
             'name': 'Адрес поставщика',
             'patterns': [
                 r'(?:адрес|юридический\s+адрес)\s*[:\-]?\s*([^\n]+)',
+                r'инн\s+\d{10,12}\s*,\s*([А-ЯЁ0-9][^\n]+)',
             ],
             'required': False,
             'region': 'provider'
@@ -277,7 +271,7 @@ class SchetHandler(BaseDocumentHandler):
 
     FIELD_REGIONS = {
         'header': ['Тип документа', 'Номер документа', 'Дата документа', 'Основание'],
-        'provider': ['Поставщик', 'ИНН', 'КПП', 'Адрес поставщика'],
+        'provider': ['Поставщик', 'ИНН', 'Адрес поставщика'],
         'bank': ['БИК', 'Наименование банка', 'Расчетный счет', 'Корр. счет'],
         'footer': ['Итого'],
         'table': ['Наименование', 'Кол-во', 'Цена', 'Сумма', 'Единица'],
@@ -308,13 +302,12 @@ class SchetHandler(BaseDocumentHandler):
 2. Дата выставления
 3. Наименование поставщика (полное с ООО/АО/ПАО)
 4. ИНН поставщика
-5. КПП поставщика
-6. БИК банка
-7. Наименование банка
-8. Расчетный счёт
-9. Корреспондентский счёт
-10. Основание (договор)
-11. Итого сумма
+5. БИК банка
+6. Наименование банка
+7. Расчетный счёт
+8. Корреспондентский счёт
+9. Основание (договор)
+10. Итого сумма
 
 ОтветЬТЕ ТОЛЬКО в формате JSON:
 {
@@ -322,7 +315,6 @@ class SchetHandler(BaseDocumentHandler):
     "дата": "значение",
     "поставщик": "значение",
     "инн": "значение",
-    "кпп": "значение",
     "бик": "значение",
     "банк": "значение",
     "расчетный_счет": "значение",
@@ -354,6 +346,15 @@ class SchetHandler(BaseDocumentHandler):
             header_section = '\n'.join(lines[header_start_idx:table_start_idx])
         else:
             header_section = '\n'.join(lines[:table_start_idx])
+
+        # Clean markdown noise from sections to avoid picking up headers as values
+        def clean_md(t):
+            t = re.sub(r'^\s*#+\s+.*$', '', t, flags=re.MULTILINE)
+            t = re.sub(r'^\s*-{3,}\s*$', '', t, flags=re.MULTILINE)
+            return t
+
+        bank_section = clean_md(bank_section)
+        header_section = clean_md(header_section)
 
         provider_section = regions.get('provider', '')
         rec_texts = regions.get('rec_texts', [])
