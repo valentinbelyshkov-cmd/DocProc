@@ -69,9 +69,9 @@ class ModelConfig:
     def for_ocr(cls) -> 'ModelConfig':
         """Optimized config for OCR tasks."""
         return cls(
-            max_tokens=1024,
-            temperature=0.1,
-            repetition_penalty=1.15,
+            max_tokens=4096,
+            temperature=0.05,
+            repetition_penalty=1.4,
             early_stopping=True,
             top_p=0.95,
         )

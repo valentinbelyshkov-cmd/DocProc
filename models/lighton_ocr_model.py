@@ -31,11 +31,15 @@ class LightOnOCRModel(BaseModel):
         # Use default LightOnOCR config if not provided
         if config is None:
             config = ModelConfig.for_ocr()
-        
+
         super().__init__(config)
         self.base_url = base_url or app_config.OLLAMA_BASE_URL
         self.model_name = model_name or app_config.NOCTRIX_MODEL
         self.name = f"lightonocr-{self.model_name}"
+
+        # Load context window size from config
+        self.num_ctx = app_config.OCR_MODEL_CONFIG.get('num_ctx', 8192)
+        self.stop_sequences = self.config.stop_sequences
 
     def _image_to_base64(self, image: PIL.Image.Image) -> str:
         """Convert PIL Image to base64 string."""
@@ -60,10 +64,16 @@ class LightOnOCRModel(BaseModel):
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.1,  # Low temperature for OCR consistency
+                "temperature": self.config.temperature,  # Lower for OCR consistency
                 "num_predict": self.config.max_tokens,
+                "num_ctx": self.num_ctx,  # CRITICAL: context window size
+                "repeat_penalty": self.config.repetition_penalty,  # Higher penalty to prevent repetition
             }
         }
+
+        # Add stop sequences if configured
+        if self.stop_sequences:
+            payload["stop"] = self.stop_sequences
 
         # Add image as base64 for vision models
         if image:
@@ -128,20 +138,19 @@ class LightOnOCRModel(BaseModel):
 
     def _get_ocr_prompt(self) -> str:
         """Get optimized prompt for LightOnOCR model."""
-        return """Perform OCR on this document image.
+        return """Извлеки текст с этого документа.
 
-Extract ALL text from the document using ONLY:
-- Russian (Cyrillic) letters: А-Яа-яЁё
-- Arabic digits: 0-9
-- Basic punctuation: .,;:()-/space
+ПРАВИЛА:
+1. Извлеки ВЕСЬ видимый текст БЕЗ изменений
+2. Сохрани структуру: заголовки, параграфы, таблицы
+3. Используй ТОЛЬКО допустимые символы: А-Яа-яЁё A-Z a-z 0-9 пробел . , ; : ( ) - / + =
 
-Return ONLY valid JSON format:
-{
-    "text": "extracted text here",
-    "tables": [["header1", "header2"], ["row1col1", "row1col2"]]
-}
+ФОРМАТ ОТВЕТА (ТОЛЬКО JSON):
+```json
+{"text": "весь извлечённый текст", "tables": [["заголовок1", "заголовок2"], ["ячейка1", "ячейка2"]]}
+```
 
-Do NOT add explanations or additional text outside JSON."""
+ВОИЗБЕГАЙ повторений! Если текст повторяется - остановись."""
 
     def list_available_models(self) -> Optional[list]:
         """List available models in Ollama."""

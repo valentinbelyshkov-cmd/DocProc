@@ -41,12 +41,15 @@ OCR_MODEL_CONFIG = {
     'default_model': os.environ.get('DEFAULT_OCR_MODEL', 'openrouter'),
 
     # Generation parameters (anti-hallucination)
-    'max_tokens': int(os.environ.get('OCR_MAX_TOKENS', '1024')),
-    'temperature': float(os.environ.get('OCR_TEMPERATURE', '0.1')),
-    'repetition_penalty': float(os.environ.get('OCR_REPETITION_PENALTY', '1.15')),
+    'max_tokens': int(os.environ.get('OCR_MAX_TOKENS', '4096')),
+    'temperature': float(os.environ.get('OCR_TEMPERATURE', '0.05')),
+    'repetition_penalty': float(os.environ.get('OCR_REPETITION_PENALTY', '1.4')),
+
+    # Context window size for Ollama (CRITICAL for large documents)
+    'num_ctx': int(os.environ.get('OLLAMA_NUM_CTX', '8192')),
 
     # Timeout settings
-    'request_timeout': int(os.environ.get('OCR_REQUEST_TIMEOUT', '60')),
+    'request_timeout': int(os.environ.get('OCR_REQUEST_TIMEOUT', '120')),
     'max_retries': int(os.environ.get('OCR_MAX_RETRIES', '3')),
 }
 
