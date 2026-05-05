@@ -89,6 +89,38 @@ class LightOnOCRModel(BaseModel):
                 json=payload,
                 timeout=self.config.timeout
             )
+            
+            # Check for HTTP errors with detailed logging
+            if response.status_code >= 400:
+                error_detail = ""
+                try:
+                    error_json = response.json()
+                    error_detail = error_json.get('error', '') or str(error_json)
+                except:
+                    error_detail = response.text[:500] if response.text else "No response body"
+                
+                logger.error(f"LightOnOCR HTTP error {response.status_code}: {error_detail}")
+                
+                # Provide helpful error messages based on status code
+                if response.status_code == 500:
+                    available = self.list_available_models()
+                    available_models = [m.get('name', 'unknown') for m in (available or [])]
+                    raise ValueError(
+                        f"Ollama сервер вернул ошибку 500. Возможные причины: "
+                        f"1) Модель '{self.model_name}' не установлена; "
+                        f"2) Недостаточно GPU памяти; "
+                        f"3) Модель загружается. "
+                        f"Доступные модели: {available_models}. "
+                        f"Установите модель: ollama pull {self.model_name}"
+                    )
+                elif response.status_code == 404:
+                    raise ValueError(
+                        f"Модель '{self.model_name}' не найдена в Ollama. "
+                        f"Установите её: ollama pull {self.model_name}"
+                    )
+                else:
+                    raise ValueError(f"Ollama ошибка {response.status_code}: {error_detail}")
+            
             response.raise_for_status()
 
             result = response.json()
