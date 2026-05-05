@@ -36,12 +36,13 @@ def validate_bank_accounts(bik: str, corr_account: str, rec_texts: list) -> Tupl
     bik_clean = normalize_account_number(bik)
     corr_clean = normalize_account_number(corr_account)
 
-    if len(corr_clean) != 20:
+    if len(corr_clean) < 19 or len(corr_clean) > 20:
         return corr_account, 0.0
 
     if corr_clean.startswith('301'):
-        logger.warning(f"Обнаружен счёт начинающийся с 301: {corr_account}")
-        return f"[ПРОВЕРЬТЕ] {corr_account}", 0.3
+        # This is likely a correspondent account, which is fine if found in a general search,
+        # but we should flag it if it's supposed to be a settlement account.
+        return corr_account, 0.8
 
     if len(bik_clean) == 9 and bik_clean.startswith('04'):
         correct_prefix = BANK_BIK_TO_CORR_ACC_PREFIX.get(bik_clean)
@@ -66,6 +67,9 @@ def is_warning_text(text: str) -> bool:
 def is_valid_bank_name(text: str) -> bool:
     """Check if text contains valid bank name indicators."""
     text_lower = text.lower()
+    # Strip HTML tags for validation
+    text_lower = re.sub(r'<[^>]+>', '', text_lower)
+    
     if is_warning_text(text_lower):
         return False
 
@@ -84,6 +88,9 @@ def clean_bank_name(raw_text: str, rec_texts: list) -> Tuple[str, float]:
     """Clean and validate bank name from raw OCR text."""
     if not raw_text or len(raw_text) < 3:
         return '', 0.0
+
+    # Strip HTML tags
+    raw_text = re.sub(r'<[^>]+>', '', raw_text).strip()
 
     if is_warning_text(raw_text):
         for text in rec_texts:
@@ -157,7 +164,7 @@ class SchetHandler(BaseDocumentHandler):
             'name': 'Номер документа',
             'patterns': [
                 r'(?:счет|счёт)(?:\s+на\s+оплату)?\s*(?:№|no\.?|#)\s*[:\-]?\s*(\S+)',
-                r'(?:номер|no\.?)\s*[:\-]?\s*(\S+)'
+                r'(?:номер|no\.?)\s*(?:№|no\.?|#)?\s*[:\-]?\s*(\S+)'
             ],
             'required': True,
             'region': 'header'
@@ -175,8 +182,9 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Поставщик',
             'patterns': [
-                r'поставщик\s*[:\-]?\s*(?:["\']?)(ООО\s+"[^"]+"|АО\s+"[^"]+"|ПАО\s+"[^"]+")',
-                r'поставщик\s*[:\-]?\s*(?:ooo|ооо|ао|пао)?\s*["\']?([\w\s"-]+?)(?:["\']?\s*,|\s*$|\s*инн)',
+                r'(?:поставщик|исполнитель|продавец)\s*[:\-]?\s*(?:["\']?)(ООО\s+"[^"]+"|АО\s+"[^"]+"|ПАО\s+"[^"]+"|ИП\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+)',
+                r'(?:поставщик|исполнитель|продавец)\s*[:\-]?\s*(?:ooo|ооо|ао|пао|ип)?\s*["\']?([\w\s"-]+?)(?:["\']?\s*,|\s*$|\s*инн)',
+                r'ИП\s+([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+)',
             ],
             'required': True,
             'region': 'provider'
@@ -185,6 +193,7 @@ class SchetHandler(BaseDocumentHandler):
             'name': 'ИНН',
             'patterns': [
                 r'(?:инн|inn)\s*[:\-]?\s*(\d{10,12})',
+                r'\b(\d{10}|\d{12})\b',
             ],
             'required': True,
             'region': 'provider'
@@ -192,9 +201,8 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'БИК',
             'patterns': [
-                r'(?:бик|bik)\s*[:\-]?\s*(\d{9})',
-                r'\b(\d{9})\b(?=\s*(?:кпп|инн|р/с|$))',
-                r'(?<!\d)(\d{9})(?!\d)',
+                r'(?:бик|bik).*?(\d{9})',
+                r'\b(\d{9})\b(?=\s*(?:кпп|инн|р/с|сч|$))',
             ],
             'required': False,
             'region': 'bank'
@@ -202,11 +210,10 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Наименование банка',
             'patterns': [
-                r'(?:банк\s+(?:получателя)?|банк получателя)\s*[:\-]?\s*([^\n]+)',
+                r'(?:банк\s+(?:получателя)?|банк получателя).*?([А-ЯЁ\w\s"-]+?[Б|b]анк[А-ЯЁ\w\s"-]*)',
                 r'([А-ЯЁ][\w\s"-]{0,30}[Б|b]анк[\w\s"-]{0,30})',
-                r'(?:[Б|b]анк\s+(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+))?([^\n]+)',
+                r'(?:[Б|b]анк\s+(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+))?([^\n<]+)',
                 r'(ПАО\s+"[^"]+"|ПAO\s+"[^"]+")',
-                r'(?:ПАО\s+|ПAO\s+|ООО\s+|АО\s+)([^\n]+)(?=\s+[Г老家])',
             ],
             'required': False,
             'region': 'bank'
@@ -214,10 +221,8 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Расчетный счет',
             'patterns': [
-                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т)\s*[:\-]?\s*(407\d{17})',
-                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т)\s*[:\-]?\s*((?:301|407)\d{17})',
-                r'(?:^|\n)\s*(407\d{17})\s*(?:\n|$)',
-                r'(?:^|\n)\s*((?:301|407)\d{17})\s*(?:\n|$)',
+                r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т|сч\.?\s*№).*?(4\d{18,19})',
+                r'(?<!\d)(4\d{18,19})(?!\d)',
             ],
             'required': False,
             'region': 'bank'
@@ -225,7 +230,8 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Корр. счет',
             'patterns': [
-                r'(?:корр[.,]?\s*сч[её]т[ар]?[ое]?[в]?[ой]?\s*)?[:\-]?\s*(\d{20})',
+                r'(?:корр[.,]?\s*сч[её]т|к/с|сч\.?\s*№).*?(301\d{16,17})',
+                r'(?<!\d)(301\d{16,17})(?!\d)',
             ],
             'required': False,
             'region': 'bank'
@@ -337,9 +343,20 @@ class SchetHandler(BaseDocumentHandler):
         table_start_idx = self.detect_table_start(lines)
         header_start_idx = self._find_header_start(lines)
 
-        bank_section = '\n'.join(lines[header_start_idx:table_start_idx])
+        # In Russian invoices, bank details are often at the top, above the title.
+        if header_start_idx > 0:
+            bank_section = '\n'.join(lines[:header_start_idx])
+        else:
+            bank_section = '\n'.join(lines[:table_start_idx])
+
+        # Header contains document number and date, usually in the title line itself.
+        if header_start_idx < len(lines):
+            header_section = '\n'.join(lines[header_start_idx:table_start_idx])
+        else:
+            header_section = '\n'.join(lines[:table_start_idx])
+
         provider_section = regions.get('provider', '')
-        rec_texts = []  # For bank validation
+        rec_texts = regions.get('rec_texts', [])
 
         for field_config in self.REQUIRED_FIELDS + self.OPTIONAL_FIELDS:
             value = None
@@ -348,45 +365,55 @@ class SchetHandler(BaseDocumentHandler):
 
             region = field_config.get('region', 'all')
             if region == 'header':
-                search_text = '\n'.join(lines[header_start_idx:table_start_idx])
+                search_texts = [header_section, text]
             elif region == 'provider':
-                search_text = bank_section + '\n' + provider_section
+                search_texts = [provider_section, header_section, text]
             elif region == 'bank':
-                search_text = bank_section
+                search_texts = [bank_section, text]
             elif region == 'footer':
-                search_text = '\n'.join(lines[table_start_idx:])
+                search_texts = ['\n'.join(lines[table_start_idx:]), text]
             else:
-                search_text = text
+                search_texts = [text]
 
-            for pattern in field_config['patterns']:
-                match = re.search(pattern, search_text, re.IGNORECASE)
-                if match:
-                    if match.groups():
-                        value = match.group(1).strip()
-                    else:
-                        value = match.group(0).strip()
+            found = False
+            for search_text in search_texts:
+                if not search_text:
+                    continue
+                for pattern in field_config['patterns']:
+                    match = re.search(pattern, search_text, re.IGNORECASE)
+                    if match:
+                        if match.groups():
+                            value = match.group(1).strip()
+                        else:
+                            value = match.group(0).strip()
 
-                    if value and len(value) > 1:
-                        is_valid, confidence = self.validate_field(field_name, value)
-                        if is_valid:
-                            value = self.clean_field_value(field_name, value)
+                        if value and len(value) > 1:
+                            # Strip HTML tags from value
+                            value = re.sub(r'<[^>]+>', '', value).strip()
+                            
+                            is_valid, confidence = self.validate_field(field_name, value)
+                            if is_valid:
+                                value = self.clean_field_value(field_name, value)
 
-                            # Special bank name validation
-                            if field_name == 'Наименование банка':
-                                cleaned_name, conf = clean_bank_name(value, rec_texts)
-                                if cleaned_name:
-                                    value = cleaned_name
-                                    confidence = conf
-                                else:
-                                    bad_patterns = ['реквизиты', 'получателя', 'счет', 'банк$']
-                                    if any(re.search(p, value.lower()) for p in bad_patterns):
-                                        continue
-                                    if not re.search(r'(банк|bank|точка|открытие|сбер)', value, re.IGNORECASE):
-                                        if not re.search(r'(пао|ооо|ао)\s+', value, re.IGNORECASE):
+                                # Special bank name validation
+                                if field_name == 'Наименование банка':
+                                    cleaned_name, conf = clean_bank_name(value, rec_texts)
+                                    if cleaned_name:
+                                        value = cleaned_name
+                                        confidence = conf
+                                    else:
+                                        bad_patterns = ['реквизиты', 'получателя', 'счет', 'банк$']
+                                        if any(re.search(p, value.lower()) for p in bad_patterns):
                                             continue
-                            break
-                    else:
-                        value = None
+                                        if not re.search(r'(банк|bank|точка|открытие|сбер)', value, re.IGNORECASE):
+                                            if not re.search(r'(пао|ооо|ао)\s+', value, re.IGNORECASE):
+                                                continue
+                                found = True
+                                break
+                        else:
+                            value = None
+                if found:
+                    break
 
             results.append({
                 'field': field_name,
@@ -395,14 +422,15 @@ class SchetHandler(BaseDocumentHandler):
                 'required': field_config.get('required', False)
             })
 
-        # Validate bank accounts
+        # Validate bank accounts and distinguish between Расчетный and Корр счет
+        bik_val = ''
+        for bf in results:
+            if bf['field'] == 'БИК' and bf['value']:
+                bik_val = bf['value']
+                break
+
         for i, field in enumerate(results):
-            if field['field'] == 'Расчетный счет' and field['value']:
-                bik_val = ''
-                for bf in results:
-                    if bf['field'] == 'БИК' and bf['value']:
-                        bik_val = bf['value']
-                        break
+            if field['field'] in ['Расчетный счет', 'Корр. счет'] and field['value']:
                 corrected_acc, conf = validate_bank_accounts(bik_val, field['value'], rec_texts)
                 if corrected_acc != field['value']:
                     results[i]['value'] = corrected_acc

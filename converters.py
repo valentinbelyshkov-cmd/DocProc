@@ -59,6 +59,7 @@ def parse_ocr_result(pages: List[Dict]) -> Dict[str, Any]:
 
     # Extract regions
     regions = _extract_regions(full_text)
+    regions['rec_texts'] = rec_texts
 
     # Parse fields
     fields = handler.extract_fields(full_text, regions)
@@ -96,8 +97,8 @@ def _extract_regions(text: str) -> Dict[str, str]:
             re.search(p, line_lower)
             for p in [
                 r'^\s*№?\s*(?:наименование|товар|описание|ед\.|кол-во|количество|сумма)',
+                r'^\s*<t[dh]>.*?№.*?</t[dh]>',
                 r'^\s*\d+\s+\d+\s+\d+',
-                r'^\s*<table',
                 r'^\s*\|',
             ]
         ):

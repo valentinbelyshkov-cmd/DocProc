@@ -78,7 +78,7 @@ class BaseDocumentHandler(ABC):
         confidence = 0.7 + (0.3 * min(len(value) / 20, 1.0))
 
         # Numeric validation for INN, BIK, account numbers
-        numeric_fields = ['ИНН', 'КПП', 'БИК', 'Счет', 'Корр. счет']
+        numeric_fields = ['ИНН', 'КПП', 'БИК', 'Счет', 'Расчетный счет', 'Корр. счет', 'ИНН продавца', 'ИНН покупателя', 'КПП продавца', 'КПП покупателя', 'ИНН исполнителя', 'ИНН заказчика']
         if field_name in numeric_fields:
             if re.match(r'^\d+$', value):
                 confidence = min(confidence + 0.1, 0.95)
@@ -147,17 +147,30 @@ class BaseDocumentHandler(ABC):
         """Detect where tables start in the document."""
         table_headers = [
             r'^\s*№?\s*(?:наименование|товар|описание|ед\.|кол-во|количество|сумма)',
+            r'^\s*<t[dh]>.*?№.*?</t[dh]>',
+            r'^\s*<t[dh]>.*?наименование.*?</t[dh]>',
+            r'^\s*<t[dh]>.*?товар.*?</t[dh]>',
             r'^\s*\d+\s+\d+\s+\d+',
             r'^\s*(?:номер|№)\s*(?:наименование|товар)',
-            r'^\s*<table',
             r'^\s*<thead',
             r'^\s*<tr',
             r'^\s*\|',
         ]
 
+        # First pass: try more specific patterns
         for i, line in enumerate(lines):
-            for pattern in table_headers:
+            for pattern in table_headers[:6]:
                 if re.search(pattern, line.lower()):
+                    return i
+
+        # Second pass: more general patterns, but skip typical bank table headers
+        bank_keywords = ['бик', 'сч. №', 'корр. счет', 'банк получателя']
+        for i, line in enumerate(lines):
+            line_lower = line.lower()
+            if any(kw in line_lower for kw in bank_keywords) and i < 20: # Typically bank table is at the top
+                continue
+            for pattern in table_headers[6:]:
+                if re.search(pattern, line_lower):
                     return i
 
         return len(lines)  # No table found, return end of document
