@@ -33,6 +33,9 @@ class OllamaModel(BaseModel):
         self.model_name = model_name or app_config.OLLAMA_MODEL
         self.name = f"ollama-{self.model_name}"
 
+        # Load context window size from config
+        self.num_ctx = app_config.OCR_MODEL_CONFIG.get('num_ctx', 8192)
+
     def _image_to_base64(self, image: PIL.Image.Image) -> str:
         """Convert PIL Image to base64 string."""
         buffered = BytesIO()
@@ -77,12 +80,12 @@ class OllamaModel(BaseModel):
             "top_p": self.config.top_p,
             "top_k": self.config.top_k,
             "num_predict": self.config.max_tokens,
+            "num_ctx": self.num_ctx,  # CRITICAL: context window size
             "stop": self.config.stop_sequences,
         }
 
-        # Repetition penalty (Ollama uses repeat_penalty)
-        if self.config.repetition_penalty != 1.0:
-            payload["options"]["repeat_penalty"] = self.config.repetition_penalty
+        # Repetition penalty (Ollama uses repeat_penalty) - set high to prevent loops
+        payload["options"]["repeat_penalty"] = max(self.config.repetition_penalty, 1.4)
 
         # Frequency/presence penalties
         if self.config.frequency_penalty != 0.0:
@@ -152,18 +155,19 @@ class OllamaModel(BaseModel):
 
     def _get_russian_ocr_prompt(self) -> str:
         """Get OCR prompt with Russian language requirements for Ollama."""
-        return """Извлеките текст из документа.
+        return """Извлеки текст с этого документа.
 
-ТРЕБОВАНИЯ:
-- Используйте ТОЛЬКО русские буквы и арабские цифры
-- НЕ добавляйте свой текст
-- Таблицы в формате JSON
+ПРАВИЛА:
+1. Извлеки ВЕСЬ видимый текст БЕЗ изменений
+2. Сохрани структуру: заголовки, параграфы, таблицы
+3. Используй ТОЛЬКО допустимые символы: А-Яа-яЁё A-Z a-z 0-9 пробел . , ; : ( ) - / + =
 
-ФОРМАТ:
-{
-    "text": "текст документа",
-    "tables": [["заголовок", "данные"]]
-}"""
+ФОРМАТ ОТВЕТА (ТОЛЬКО JSON):
+```json
+{"text": "весь извлечённый текст", "tables": [["заголовок1", "заголовок2"], ["ячейка1", "ячейка2"]]}
+```
+
+ВОИЗБЕГАЙ повторений! Если текст повторяется - остановись."""
 
     def list_available_models(self) -> Optional[list]:
         """List available models in Ollama."""
@@ -211,7 +215,16 @@ class NoctrixLightOnOCRModel(OllamaModel):
 
     def _get_ocr_prompt(self) -> str:
         """Get optimized prompt for OCR model."""
-        return """Perform OCR on this image. Extract all text and tables.
-Return as JSON with 'text' and 'tables' fields.
-ONLY use Russian (Cyrillic), English letters, and Arabic digits.
-"""
+        return """Извлеки текст с этого документа.
+
+ПРАВИЛА:
+1. Извлеки ВЕСЬ видимый текст БЕЗ изменений
+2. Сохрани структуру: заголовки, параграфы, таблицы
+3. Используй ТОЛЬКО допустимые символы: А-Яа-яЁё A-Z a-z 0-9 пробел . , ; : ( ) - / + =
+
+ФОРМАТ ОТВЕТА (ТОЛЬКО JSON):
+```json
+{"text": "весь извлечённый текст", "tables": [["заголовок1", "заголовок2"], ["ячейка1", "ячейка2"]]}
+```
+
+ВОИЗБЕГАЙ повторений! Если текст повторяется - остановись."""
