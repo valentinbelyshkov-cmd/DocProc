@@ -255,9 +255,19 @@ class BaseModel(ABC):
                     pass
 
             logger.warning(f"Не удалось распарсить JSON из ответа модели. Content: {content[:100]}...")
+            
+            # Fallback: try to extract tables from markdown if present
+            tables = []
+            if "|" in content and "\n" in content:
+                try:
+                    from processors.table_extractor import default_extractor
+                    tables = default_extractor.extract_tables(content)
+                except Exception as e:
+                    logger.debug(f"Failed to extract markdown tables: {e}")
+
             return {
                 'text': content,
-                'tables': [],
+                'tables': tables,
                 'raw': None
             }
 

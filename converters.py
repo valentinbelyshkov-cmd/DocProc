@@ -71,8 +71,13 @@ def parse_ocr_result(pages: List[Dict]) -> Dict[str, Any]:
     # Extract tables
     tables = []
     for page in pages:
+        # Check in page root (legacy)
         if 'tables' in page and page['tables']:
             tables.extend(page['tables'])
+        # Check in result_data (VLLMProcessor)
+        elif 'result_data' in page and isinstance(page['result_data'], dict) and 'tables' in page['result_data']:
+            if page['result_data']['tables']:
+                tables.extend(page['result_data']['tables'])
 
     if not tables:
         tables = default_extractor.extract_numerical_tables(full_text)

@@ -54,6 +54,14 @@ class GLMOCRModel(BaseModel):
                 error="ZhipuAI API key is missing"
             )
 
+        # Default system prompt if none provided to ensure JSON output
+        if not system_prompt:
+            system_prompt = (
+                "You are a professional OCR system. Your task is to extract all text "
+                "from the image and return it strictly in JSON format. "
+                "Do not include any explanations or markdown outside the JSON block."
+            )
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -150,16 +158,22 @@ class GLMOCRModel(BaseModel):
 
     def _get_russian_ocr_prompt(self) -> str:
         """Get OCR prompt with Russian language requirements."""
-        return """Извлеки текст с этого документа.
+        return """Извлеки текст с этого документа и представь его СТРОГО в формате JSON.
 
 ПРАВИЛА:
 1. Извлеки ВЕСЬ видимый текст БЕЗ изменений
 2. Сохрани структуру: заголовки, параграфы, таблицы
 3. Используй ТОЛЬКО допустимые символы: А-Яа-яЁё A-Z a-z 0-9 пробел . , ; : ( ) - / + =
+4. Текст должен быть в поле "text"
+5. Все таблицы должны быть в поле "tables" как список списков (матрица)
 
-ФОРМАТ ОТВЕТА (ТОЛЬКО JSON):
-```json
-{"text": "весь извлечённый текст", "tables": [["заголовок1", "заголовок2"], ["ячейка1", "ячейка2"]]}
-```
+ФОРМАТ ОТВЕТА (ТОЛЬКО ЧИСТЫЙ JSON):
+{
+  "text": "весь извлечённый текст",
+  "tables": [
+    ["Колонка 1", "Колонка 2"],
+    ["Данные 1", "Данные 2"]
+  ]
+}
 
-ВОИЗБЕГАЙ повторений! Если текст повторяется - остановись."""
+НЕ пиши ничего кроме JSON! ВОИЗБЕГАЙ повторений! Если текст повторяется - остановись."""
