@@ -7,6 +7,7 @@ from typing import Dict, List, Any
 import pandas as pd
 from io import BytesIO
 from docx import Document
+from docx.shared import Pt
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 from processors.handlers_registry import DocumentHandlerRegistry
@@ -149,16 +150,67 @@ def _extract_regions(text: str) -> Dict[str, str]:
 
 
 def to_docx(pages: List[Dict]) -> BytesIO:
-    """Convert OCR result to DOCX format."""
+    """Convert OCR result to DOCX format with proper table support."""
     doc = Document()
+    
+    # Set default style
+    style = doc.styles['Normal']
+    style.font.name = 'Arial'
+    style.font.size = Pt(10)
 
     for page in pages:
         doc.add_heading(f"Страница {page['page_num']}", level=1)
-        markdown_text = page.get('markdown', '')
-
-        for line in markdown_text.split('\n'):
-            if line.strip():
-                doc.add_paragraph(line.strip())
+        
+        result_data = page.get('result_data')
+        
+        if isinstance(result_data, dict):
+            # Use structured data
+            text = result_data.get('text', '')
+            if text:
+                for part in text.split('\n'):
+                    if part.strip():
+                        doc.add_paragraph(part.strip())
+            
+            tables = result_data.get('tables', [])
+            if tables:
+                for table_data in tables:
+                    if not table_data or not isinstance(table_data, list):
+                        continue
+                    
+                    rows_count = len(table_data)
+                    cols_count = max(len(row) for row in table_data) if table_data else 0
+                    
+                    if rows_count > 0 and cols_count > 0:
+                        doc.add_paragraph("") # Spacer
+                        doc.add_heading("Таблица", level=3)
+                        table = doc.add_table(rows=rows_count, cols=cols_count)
+                        table.style = 'Table Grid'
+                        
+                        for r_idx, row_data in enumerate(table_data):
+                            for c_idx, cell_data in enumerate(row_data):
+                                if c_idx < cols_count:
+                                    table.cell(r_idx, c_idx).text = str(cell_data)
+        else:
+            # Fallback to markdown text
+            markdown_text = page.get('markdown', '')
+            for line in markdown_text.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                
+                if line.startswith('### '):
+                    doc.add_heading(line[4:], level=3)
+                elif line.startswith('## '):
+                    doc.add_heading(line[3:], level=2)
+                elif line.startswith('# '):
+                    doc.add_heading(line[2:], level=1)
+                elif line.startswith('|'):
+                    # Skip table lines in fallback if they look like pipes
+                    # because we don't have a good way to convert them here 
+                    # without more complex logic
+                    doc.add_paragraph(line)
+                else:
+                    doc.add_paragraph(line)
 
         doc.add_page_break()
 
@@ -181,6 +233,12 @@ def to_xlsx(pages: List[Dict]) -> BytesIO:
                         'Текст': block.get('text', ''),
                         'Уверенность': block.get('confidence', 0)
                     })
+        elif 'result_data' in page and isinstance(page['result_data'], dict) and 'text' in page['result_data']:
+             rows.append({
+                'Страница': page['page_num'],
+                'Текст': page['result_data']['text'],
+                'Уверенность': 1.0
+            })
         else:
             rows.append({
                 'Страница': page['page_num'],
@@ -267,12 +325,12 @@ def to_extracted_data_xlsx(pages: List[Dict]) -> BytesIO:
 
         # Tables sheet
         if tables:
-            for idx, table_data in enumerate(tables[:3], 1):
-                table_df = pd.DataFrame(table_data)
-
-                if table_df.shape[1] <= 10:
-                    table_df.to_excel(writer, index=False, sheet_name=f'Таблица {idx}')
-                    ws = writer.sheets[f'Таблица {idx}']
+            for idx, table_data in enumerate(tables[:10], 1):
+                try:
+                    table_df = pd.DataFrame(table_data)
+                    sheet_name = f'Таблица {idx}'
+                    table_df.to_excel(writer, index=False, sheet_name=sheet_name)
+                    ws = writer.sheets[sheet_name]
 
                     for row in ws.iter_rows(
                         min_row=1, max_row=ws.max_row,
@@ -286,6 +344,8 @@ def to_extracted_data_xlsx(pages: List[Dict]) -> BytesIO:
                         for cell in ws[1]:
                             cell.font = header_font
                             cell.fill = header_fill
+                except Exception as e:
+                    logger.warning(f"Failed to export table {idx} to Excel: {e}")
         else:
             pd.DataFrame({'Сообщение': ['Таблицы в документе не найдены']}).to_excel(
                 writer, index=False, sheet_name='Таблица 1'
@@ -298,7 +358,3 @@ def to_extracted_data_xlsx(pages: List[Dict]) -> BytesIO:
 def get_extracted_data(pages: List[Dict]) -> Dict[str, Any]:
     """Get extracted document data as JSON."""
     return parse_ocr_result(pages)
-
-
-# Re-export regex for _extract_regions
-import re
