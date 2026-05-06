@@ -42,7 +42,7 @@ OCR_MODEL_CONFIG = {
     'repetition_penalty': float(os.environ.get('OCR_REPETITION_PENALTY', '1.4')),
 
     # Context window size for Ollama (CRITICAL for large documents)
-    'num_ctx': int(os.environ.get('OLLAMA_NUM_CTX', '8192')),
+    'num_ctx': int(os.environ.get('OLLAMA_NUM_CTX', '16384')),
 
     # Timeout settings
     'request_timeout': int(os.environ.get('OCR_REQUEST_TIMEOUT', '300')),
