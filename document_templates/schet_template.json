@@ -44,14 +44,6 @@
           "validation": "inn"
         },
         {
-          "name": "КПП",
-          "key": "кпп",
-          "type": "number",
-          "required": false,
-          "length": 9,
-          "validation": "kpp"
-        },
-        {
           "name": "Адрес",
           "key": "адрес",
           "type": "string",

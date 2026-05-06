@@ -78,7 +78,7 @@ class BaseDocumentHandler(ABC):
         confidence = 0.7 + (0.3 * min(len(value) / 20, 1.0))
 
         # Numeric validation for INN, BIK, account numbers
-        numeric_fields = ['ИНН', 'КПП', 'БИК', 'Счет', 'Расчетный счет', 'Корр. счет', 'ИНН продавца', 'ИНН покупателя', 'КПП продавца', 'КПП покупателя', 'ИНН исполнителя', 'ИНН заказчика']
+        numeric_fields = ['ИНН', 'БИК', 'Счет', 'Расчетный счет', 'Корр. счет', 'ИНН продавца', 'ИНН покупателя', 'ИНН исполнителя', 'ИНН заказчика']
         if field_name in numeric_fields:
             if re.match(r'^\d+$', value):
                 confidence = min(confidence + 0.1, 0.95)
