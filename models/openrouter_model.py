@@ -92,6 +92,8 @@ class OpenRouterModel(BaseModel):
 
         try:
             logger.info(f"OpenRouter request: model={self.model}")
+            logger.info(f"OpenRouter payload: {json.dumps(generation_params, ensure_ascii=False, indent=2)}")
+            
             response = requests.post(
                 self.url,
                 headers=headers,

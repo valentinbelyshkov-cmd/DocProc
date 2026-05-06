@@ -152,6 +152,7 @@ class VLLMProcessor(BaseProcessor):
                 task.images[i + 1] = img_io.getvalue()
 
                 # Extract text and tables
+                logger.info(f"Calling model {task.model_name} for OCR")
                 result_data = model.extract_text_and_tables(img)
 
                 # Build markdown

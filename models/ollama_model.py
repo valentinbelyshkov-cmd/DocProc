@@ -139,6 +139,7 @@ class OllamaModel(BaseModel):
 
         try:
             logger.info(f"Ollama request: {self.base_url}/api/chat (model: {self.model_name})")
+            logger.info(f"Ollama payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
 
             response = requests.post(
                 f"{self.base_url}/api/chat",
