@@ -74,7 +74,8 @@ class UPDHandler(BaseDocumentHandler):
         {
             'name': 'ИНН продавца',
             'patterns': [
-                r'инн\s*(?:продавца|поставщика)?\s*[:\-]?\s*(\d{10,12})'
+                r'(?:инн|inn|inн|iнн|иhh|1nn)\s*(?:продавца|поставщика)?\s*[:\-]?\s*(\d{10,12})',
+                r'\b(\d{10,12})\b'
             ],
             'required': True,
             'region': 'provider'
@@ -82,7 +83,8 @@ class UPDHandler(BaseDocumentHandler):
         {
             'name': 'КПП продавца',
             'patterns': [
-                r'кпп\s*(?:продавца|поставщика)?\s*[:\-]?\s*(\d{9})'
+                r'(?:кпп|kpp|kпп|кpp)\s*(?:продавца|поставщика)?\s*[:\-]?\s*(\d{9})',
+                r'\b(\d{9})\b'
             ],
             'required': False,
             'region': 'provider'
@@ -91,7 +93,8 @@ class UPDHandler(BaseDocumentHandler):
             'name': 'Покупатель',
             'patterns': [
                 r'покупатель\s*[:\-]?\s*(.+)',
-                r'получатель\s*[:\-]?\s*(.+)'
+                r'получатель\s*[:\-]?\s*(.+)',
+                r'(?:buyer|customer)\s*[:\-]?\s*(.+)'
             ],
             'required': True,
             'region': 'customer'
@@ -99,7 +102,8 @@ class UPDHandler(BaseDocumentHandler):
         {
             'name': 'ИНН покупателя',
             'patterns': [
-                r'инн\s*(?:покупателя|получателя)?\s*[:\-]?\s*(\d{10,12})'
+                r'(?:инн|inn|inн|iнн|иhh|1nn)\s*(?:покупателя|получателя)?\s*[:\-]?\s*(\d{10,12})',
+                r'\b(\d{10,12})\b'
             ],
             'required': True,
             'region': 'customer'
@@ -108,7 +112,8 @@ class UPDHandler(BaseDocumentHandler):
             'name': 'Основание',
             'patterns': [
                 r'(?:основание|basis)\s*[:\-]?\s*(.+)',
-                r'(\d{5,}\s+(?:от|OT)\s+\d{1,2}[.,]\d{1,2}[.,]\d{2,4})'
+                r'(\d{5,}\s+(?:от|OT)\s+\d{1,2}[.,]\d{1,2}[.,]\d{2,4})',
+                r'(?:договор|контракт)\s*(?:№|no\.?)?\s*[:\-]?\s*(\S+)'
             ],
             'required': False,
             'region': 'header'
@@ -116,8 +121,10 @@ class UPDHandler(BaseDocumentHandler):
         {
             'name': 'Итого к оплате',
             'patterns': [
-                r'(?:всего|итого)\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)',
-                r'всего\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)'
+                r'(?:всего|итого|total|sum)\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)',
+                r'([\d\s,]+(?:[.,]\d{2})?)\s*(?:руб|₽|rur)',
+                r'всего\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)',
+                r'сумма\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)'
             ],
             'required': True,
             'region': 'footer'
@@ -128,7 +135,8 @@ class UPDHandler(BaseDocumentHandler):
         {
             'name': 'КПП покупателя',
             'patterns': [
-                r'кпп\s*(?:покупателя|получателя)?\s*[:\-]?\s*(\d{9})'
+                r'(?:кпп|kpp|kпп|кpp)\s*(?:покупателя|получателя)?\s*[:\-]?\s*(\d{9})',
+                r'\b(\d{9})\b'
             ],
             'required': False,
             'region': 'customer'

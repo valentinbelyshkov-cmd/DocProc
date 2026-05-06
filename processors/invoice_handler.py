@@ -71,13 +71,19 @@ class InvoiceHandler(BaseDocumentHandler):
         },
         {
             'name': 'ИНН продавца',
-            'patterns': [r'инн\s*(?:продавца)?\s*[:\-]?\s*(\d{10,12})'],
+            'patterns': [
+                r'(?:инн|inn|inн|iнн|иhh|1nn)\s*(?:продавца)?\s*[:\-]?\s*(\d{10,12})',
+                r'\b(\d{10,12})\b'
+            ],
             'required': True,
             'region': 'provider'
         },
         {
             'name': 'КПП продавца',
-            'patterns': [r'кпп\s*(?:продавца)?\s*[:\-]?\s*(\d{9})'],
+            'patterns': [
+                r'(?:кпп|kpp|kпп|кpp)\s*(?:продавца)?\s*[:\-]?\s*(\d{9})',
+                r'\b(\d{9})\b'
+            ],
             'required': False,
             'region': 'provider'
         },
@@ -85,14 +91,18 @@ class InvoiceHandler(BaseDocumentHandler):
             'name': 'Покупатель',
             'patterns': [
                 r'покупатель\s*[:\-]?\s*(.+)',
-                r'(?:buyer|customer)\s*[:\-]?\s*(.+)'
+                r'(?:buyer|customer)\s*[:\-]?\s*(.+)',
+                r'получатель\s*[:\-]?\s*(.+)'
             ],
             'required': True,
             'region': 'customer'
         },
         {
             'name': 'ИНН покупателя',
-            'patterns': [r'инн\s*(?:покупателя)?\s*[:\-]?\s*(\d{10,12})'],
+            'patterns': [
+                r'(?:инн|inn|inн|iнн|иhh|1nn)\s*(?:покупателя)?\s*[:\-]?\s*(\d{10,12})',
+                r'\b(\d{10,12})\b'
+            ],
             'required': True,
             'region': 'customer'
         },
@@ -100,8 +110,9 @@ class InvoiceHandler(BaseDocumentHandler):
             'name': 'Итого к оплате',
             'patterns': [
                 r'(?:всего|итого|total|sum)\s*(?:к\s*оплате)?\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)',
-                r'([\d\s,]+)\s*(?:руб|₽|rur)',
-                r'всего\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)'
+                r'([\d\s,]+(?:[.,]\d{2})?)\s*(?:руб|₽|rur)',
+                r'всего\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)',
+                r'сумма\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)'
             ],
             'required': True,
             'region': 'footer'
@@ -111,7 +122,10 @@ class InvoiceHandler(BaseDocumentHandler):
     OPTIONAL_FIELDS = [
         {
             'name': 'КПП покупателя',
-            'patterns': [r'кпп\s*(?:покупателя)?\s*[:\-]?\s*(\d{9})'],
+            'patterns': [
+                r'(?:кпп|kpp|kпп|кpp)\s*(?:покупателя)?\s*[:\-]?\s*(\d{9})',
+                r'\b(\d{9})\b'
+            ],
             'required': False,
             'region': 'customer'
         },
