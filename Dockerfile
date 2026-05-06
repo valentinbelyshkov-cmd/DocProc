@@ -24,9 +24,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --index-url https://pypi.tuna.tsinghua.edu.cn/simple \
     --trusted-host pypi.tuna.tsinghua.edu.cn \
     -r requirements.txt
-RUN pip install "glmocr[selfhosted]" \
-    --index-url https://pypi.tuna.tsinghua.edu.cn/simple \
-    --trusted-host pypi.tuna.tsinghua.edu.cn 
 
 # Copy application files
 COPY . .

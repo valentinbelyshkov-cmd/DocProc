@@ -1,73 +1,56 @@
-from glmocr import GlmOcr, parse
-import os
+import base64
+import json
+import requests
 
-# Use an existing image from the repository for testing
-# test_ocr.png is already present in the repository
-image_path = "test_ocr.png"
+# === НАСТРОЙКИ ===
+OLLAMA_URL = "http://localhost:11434/api/chat"
+MODEL_NAME = "maternion/LightOnOCR-2:latest"  # или "qwen2.5-vl" если glm-ocr падает
+IMAGE_PATH = "111.jpg"    # укажи путь к своей УПД
+# =================
 
-print(f"Testing with image: {image_path}")
+def encode_image(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
-# --- Simple function API ---
-# Note: a list is treated as pages of a single document.
-try:
-    result = parse(image_path)
-    result.save(output_dir="./results")
-    print("Simple parse successful.")
-except Exception as e:
-    print(f"Simple parse skipped or failed: {e}")
+def main():
+    image_b64 = encode_image(IMAGE_PATH)
 
-# --- Class-based API ---
-try:
-    with GlmOcr(layout_device="cpu") as parser:
-        result = parser.parse(image_path)
-        print("Standard OCR Result:", result.json_result)
-        result.save()
-except Exception as e:
-    print(f"Class-based API skipped or failed: {e}")
+    payload = {
+        "model": MODEL_NAME,
+        "messages": [
+            {
+                "role": "user",
+                "images": [image_b64]  # base64 массив — критично для vision-моделей
+            }
+        ],
+        "stream": False,
+        "options": {
+            "num_ctx": 16384,      # glm-ocr требует большой контекст
+            "temperature": 0.2,    # минимум галлюцинаций
+            "num_predict": 4096    # хватит на большую таблицу
+        }
+    }
 
-# --- Document Parsing (Table Recognition) ---
-print("\n--- Table Recognition ---")
-try:
-    with GlmOcr(layout_device="cpu") as parser:
-        # Document Parsing tasks include: "Text Recognition:", "Formula Recognition:", "Table Recognition:"
-        result = parser.parse(image_path, prompt="Table Recognition:")
-        print("Table Recognition Result:", result.json_result)
-except Exception as e:
-    print(f"Table Recognition skipped or failed: {e}")
+    try:
+        response = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        response.raise_for_status()
+        result = response.json()
+        
+        # Вывод ответа модели
+        print("=== РЕЗУЛЬТАТ ===")
+        print(result["message"]["content"])
+        
+        # Для отладки: можно посмотреть сколько токенов ушло
+        print(f"\n[DEBUG] Prompt tokens: {result.get('prompt_eval_count', 'N/A')}")
+        print(f"[DEBUG] Response tokens: {result.get('eval_count', 'N/A')}")
 
-# --- Information Extraction ---
-print("\n--- Information Extraction ---")
-ie_prompt = """请按下列JSON格式输出图中信息:
-{
-    "id_number": "",
-    "last_name": "",
-    "first_name": "",
-    "date_of_birth": "",
-    "address": {
-        "street": "",
-        "city": "",
-        "state": "",
-        "zip_code": ""
-    },
-    "dates": {
-        "issue_date": "",
-        "expiration_date": ""
-    },
-    "sex": ""
-}"""
+    except requests.exceptions.ConnectionError:
+        print("❌ Ollama не запущен. Запусти: ollama serve")
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ Ошибка HTTP: {e}")
+        print(f"Ответ сервера: {e.response.text}")
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
 
-try:
-    with GlmOcr(layout_device="cpu") as parser:
-        # Information Extraction requires a strict JSON schema prompt
-        result = parser.parse(image_path, prompt=ie_prompt)
-        print("Information Extraction Result:", result.json_result)
-except Exception as e:
-    print(f"Information Extraction skipped or failed: {e}")
-
-# --- Other examples from documentation ---
-# result = parse(["img1.png", "img2.jpg"])
-# result = parse("https://example.com/image.png")
-
-# Place layout model on a specific GPU
-# with GlmOcr(layout_device="cuda:1") as parser:
-#     result = parser.parse(image_path)
+if __name__ == "__main__":
+    main()
