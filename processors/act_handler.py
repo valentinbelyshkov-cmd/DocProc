@@ -136,30 +136,12 @@ class ActHandler(BaseDocumentHandler):
             'required': False,
             'region': 'header'
         },
-        {
-            'name': 'КПП исполнителя',
-            'patterns': [
-                r'(?:кпп|kpp|kпп|кpp)\s*(?:исполнителя)?\s*[:\-]?\s*(\d{9})',
-                r'\b(\d{9})\b'
-            ],
-            'required': False,
-            'region': 'provider'
-        },
-        {
-            'name': 'КПП заказчика',
-            'patterns': [
-                r'(?:кпп|kpp|kпп|кpp)\s*(?:заказчика)?\s*[:\-]?\s*(\d{9})',
-                r'\b(\d{9})\b'
-            ],
-            'required': False,
-            'region': 'customer'
-        },
     ]
 
     FIELD_REGIONS = {
         'header': ['Тип документа', 'Номер документа', 'Дата документа', 'Основание', 'Место составления'],
-        'provider': ['Исполнитель', 'ИНН исполнителя', 'КПП исполнителя'],
-        'customer': ['Заказчик', 'ИНН заказчика', 'КПП заказчика'],
+        'provider': ['Исполнитель', 'ИНН исполнителя'],
+        'customer': ['Заказчик', 'ИНН заказчика'],
         'bank': [],
         'footer': ['Итого'],
         'table': ['Наименование', 'Кол-во', 'Цена', 'Сумма', 'Единица'],
@@ -187,11 +169,10 @@ class ActHandler(BaseDocumentHandler):
 2. Дата составления
 3. Наименование исполнителя (полное)
 4. ИНН исполнителя
-5. КПП исполнителя
-6. Наименование заказчика (полное)
-7. ИНН заказчика
-8. Основание (номер и дата договора)
-9. Итого сумма
+5. Наименование заказчика (полное)
+6. ИНН заказчика
+7. Основание (номер и дата договора)
+8. Итого сумма
 
 ОтветЬТЕ ТОЛЬКО в формате JSON:
 {
@@ -199,7 +180,6 @@ class ActHandler(BaseDocumentHandler):
     "дата": "значение",
     "исполнитель": "значение",
     "инн_исполнителя": "значение",
-    "кпп_исполнителя": "значение",
     "заказчик": "значение",
     "инн_заказчика": "значение",
     "основание": "значение",
@@ -217,22 +197,11 @@ class ActHandler(BaseDocumentHandler):
 
         table_start_idx = self.detect_table_start(lines)
         provider_text = regions.get('provider', '')
-        is_ip = bool(re.search(r'\bИП\b', provider_text, re.IGNORECASE))
 
         for field_config in self.REQUIRED_FIELDS + self.OPTIONAL_FIELDS:
             value = None
             confidence = 0.0
             field_name = field_config['name']
-
-            # Для ИП не извлекаем КПП
-            if field_name == 'КПП исполнителя' and is_ip:
-                results.append({
-                    'field': field_name,
-                    'value': '',
-                    'confidence': 0.0,
-                    'required': field_config.get('required', False)
-                })
-                continue
 
             region = field_config.get('region', 'all')
             if region == 'header':

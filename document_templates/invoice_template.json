@@ -45,14 +45,6 @@
           "validation": "inn"
         },
         {
-          "name": "КПП",
-          "key": "кпп_продавца",
-          "type": "number",
-          "required": false,
-          "length": 9,
-          "validation": "kpp"
-        },
-        {
           "name": "Адрес",
           "key": "адрес_продавца",
           "type": "string",
@@ -83,14 +75,6 @@
           "required": true,
           "length": 10,
           "validation": "inn"
-        },
-        {
-          "name": "КПП",
-          "key": "кпп_покупателя",
-          "type": "number",
-          "required": false,
-          "length": 9,
-          "validation": "kpp"
         },
         {
           "name": "Грузополучатель",
