@@ -139,7 +139,14 @@ class OllamaModel(BaseModel):
 
         try:
             logger.info(f"Ollama request: {self.base_url}/api/chat (model: {self.model_name})")
-            logger.info(f"Ollama payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
+            
+            # Log payload for debugging (with truncated images to keep logs clean)
+            log_payload = json.loads(json.dumps(payload))
+            for msg in log_payload.get("messages", []):
+                if "images" in msg and msg["images"]:
+                    msg["images"] = [f"{img[:50]}...[truncated {len(img)} chars]"]
+            
+            logger.info(f"Ollama payload: {json.dumps(log_payload, ensure_ascii=False, indent=2)}")
 
             response = requests.post(
                 f"{self.base_url}/api/chat",
