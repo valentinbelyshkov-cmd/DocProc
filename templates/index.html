@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Конвертер документов PaddleOCR</title>
+    <title>PDF OCR Конвертер</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -16,24 +16,24 @@
         <div class="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 p-10 rounded-xl shadow-lg">
             <div>
                 <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-                    Конвертер PaddleOCR
+                    PDF OCR Конвертер
                 </h2>
                 <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
                     Загрузите PDF, изображения или ZIP архив для извлечения текста
                 </p>
-                </div>
+            </div>
 
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
-                {% endwith %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
 
-                {% if has_tasks %}
+            {% if has_tasks %}
             <div class="mt-4 text-center">
                 <a href="{{ url_for('status_page') }}" class="text-indigo-600 hover:text-indigo-500 text-sm font-medium">
                     Посмотреть текущую очередь
@@ -75,22 +75,17 @@
                         Выберите модель обработки
                     </label>
                     <select name="model_name" id="model_name" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <optgroup label="Классические методы OCR" class="bg-gray-100 dark:bg-gray-800 font-bold">
-                            <option value="tesseract">Tesseract OCR</option>
-                            <option value="easyocr">EasyOCR</option>
-                            <option value="pyocr">PyOCR</option>
-                        </optgroup>
-                        <optgroup label="Современные модели (VLLM)" class="bg-gray-100 dark:bg-gray-800 font-bold">
-                            <option value="paddle-default">PaddleOCR (Классический)</option>
-                            <option value="glm-ocr">GLM-OCR</option>
-                            <option value="paddle-vl">PaddleOCR-VL-1.5</option>
-                            <option value="openrouter">OpenRouter (GPT-4o/Gemini)</option>
-                        </optgroup>
-                        <optgroup label="Ollama (Локальные модели)" class="bg-gray-100 dark:bg-gray-800 font-bold">
-                            <option value="ollama-glm">GLM-OCR (Ollama)</option>
-                            <option value="ollama">GLM-OCR (Ollama, по умолчанию)</option>
+                        <optgroup label="Локальные модели (Ollama)" class="bg-gray-100 dark:bg-gray-800 font-bold">
+                            <option value="ollama">GLM-OCR (Ollama)</option>
                             <option value="noctrix">Noctrix LightOnOCR-2-1B (Ollama)</option>
                             <option value="lightonocr">maternion/LightOnOCR-2 (Ollama)</option>
+                        </optgroup>
+                        <optgroup label="Облачные модели (API)" class="bg-gray-100 dark:bg-gray-800 font-bold">
+                            <option value="glm-ocr">GLM-OCR</option>
+                            <option value="openrouter">OpenRouter (GPT-4o/Gemini)</option>
+                        </optgroup>
+                        <optgroup label="Классические методы OCR" class="bg-gray-100 dark:bg-gray-800 font-bold">
+                            <option value="tesseract">Tesseract OCR</option>
                         </optgroup>
                     </select>
                 </div>
@@ -105,31 +100,6 @@
     </div>
 
     <script>
-        // Check PaddleOCR availability on page load
-        async function checkPaddleOCRAvailability() {
-            try {
-                const response = await fetch('/api/health', { method: 'GET' });
-                if (response.ok) {
-                    const data = await response.json();
-                    if (!data.model_loaded) {
-                        const modelSelect = document.getElementById('model_name');
-                        // Find and disable PaddleOCR option
-                        for (let option of modelSelect.options) {
-                            if (option.value === 'paddle-default') {
-                                option.disabled = true;
-                                option.text = option.text + ' (недоступен)';
-                                break;
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log('Could not check PaddleOCR status');
-            }
-        }
-        
-        checkPaddleOCRAvailability();
-        
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const fileName = document.getElementById('file-name');

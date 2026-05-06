@@ -38,7 +38,6 @@ class VLLMProcessor(BaseProcessor):
     # Model name aliases
     MODEL_ALIASES = {
         'glm-ocr': 'glm',
-        'paddle-vl': 'paddle-vl',
         'openrouter': 'openrouter',
         'ollama-glm': 'ollama',
         'ollama': 'ollama',

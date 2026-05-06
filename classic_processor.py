@@ -14,16 +14,6 @@ try:
 except ImportError:
     pytesseract = None
 
-try:
-    import easyocr
-except ImportError:
-    easyocr = None
-
-try:
-    import pyocr
-    import pyocr.builders
-except ImportError:
-    pyocr = None
 
 class ClassicTask:
     def __init__(self, task_id, filename, engine):
@@ -40,10 +30,10 @@ class ClassicTask:
         self.updated_at = time.time()
         self.images = {}
 
+
 class ClassicProcessor:
     def __init__(self):
         self.tasks = {}
-        self.easyocr_reader = None
 
     def submit_job(self, filename, content, engine='tesseract'):
         task_id = str(uuid.uuid4())
@@ -71,10 +61,6 @@ class ClassicProcessor:
             
             pages_results = []
             
-            if task.engine == 'easyocr' and self.easyocr_reader is None:
-                if easyocr:
-                    self.easyocr_reader = easyocr.Reader(['ru', 'en'])
-            
             for i, img in enumerate(images):
                 img_io = io.BytesIO()
                 img.save(img_io, 'PNG')
@@ -82,31 +68,10 @@ class ClassicProcessor:
                 task.images[i+1] = img_io.getvalue()
 
                 text = ""
-                if task.engine == 'tesseract':
-                    if pytesseract:
-                        text = pytesseract.image_to_string(img, lang='rus+eng')
-                    else:
-                        text = "Tesseract not installed"
-                elif task.engine == 'easyocr':
-                    if self.easyocr_reader:
-                        results = self.easyocr_reader.readtext(img)
-                        text = "\n".join([res[1] for res in results])
-                    else:
-                        text = "EasyOCR not installed"
-                elif task.engine == 'pyocr':
-                    if pyocr:
-                        tools = pyocr.get_available_tools()
-                        if len(tools) > 0:
-                            tool = tools[0]
-                            text = tool.image_to_string(
-                                img,
-                                lang="rus+eng",
-                                builder=pyocr.builders.TextBuilder()
-                            )
-                        else:
-                            text = "No PyOCR tools available"
-                    else:
-                        text = "PyOCR not installed"
+                if pytesseract:
+                    text = pytesseract.image_to_string(img, lang='rus+eng')
+                else:
+                    text = "Tesseract not installed"
                 
                 pages_results.append({
                     'page_num': i + 1,

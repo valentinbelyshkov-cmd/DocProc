@@ -13,32 +13,7 @@ services:
     environment:
       - DOCKER_ENV=true
       - PORT=8011
-      - PADDLEOCR_API_URL=http://paddleocr-api:8000
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - paddleocr-api
     restart: unless-stopped
-
-  paddleocr-api:
-    build:
-      context: ./paddleocr-pdf-api-master
-      dockerfile: Dockerfile
-    container_name: paddleocr-api
-    ports:
-      - "8099:8000"
-    volumes:
-      - ocr-data:/data
-    restart: unless-stopped
-    # Use GPU if available
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-volumes:
-  ocr-data:

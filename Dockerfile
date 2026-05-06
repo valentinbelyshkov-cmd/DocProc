@@ -5,18 +5,7 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
     tesseract-ocr-eng \
-    tesseract-ocr-fra \
-    tesseract-ocr-deu \
-    tesseract-ocr-spa \
-    tesseract-ocr-ita \
-    tesseract-ocr-por \
-    tesseract-ocr-jpn \
-    tesseract-ocr-chi-sim \
-    tesseract-ocr-chi-tra \
-    tesseract-ocr-kor \
     tesseract-ocr-rus \
-    tesseract-ocr-ara \
-    tesseract-ocr-hin \
     libgl1 \
     libglib2.0-0 \
     && apt-get clean \
@@ -26,9 +15,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements-paddleocr.txt .
-
-RUN pip install --no-cache-dir -r requirements-paddleocr.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY . .
