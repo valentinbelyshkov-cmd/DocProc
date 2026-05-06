@@ -97,19 +97,52 @@ def _extract_regions(text: str) -> Dict[str, str]:
     lines = text.split('\n')
     table_start = len(lines)
 
+    # Lines that indicate end of table or summary rows, not table start
+    table_end_indicators = [
+        r'^\s*(?:итого|всего|сумма\s*ндс|ндс\s*:\s*\d)',
+        r'^\s*(?:и\s*того|всего\s*к\s*оплате)',
+        r'^\s*(?:подпись|дата\s*$)',
+    ]
+
+    # First pass: look for specific table header patterns
+    table_header_patterns = [
+        r'^\s*№?\s*(?:наименование|товар|описание|ед\.?|кол-во|количество|сумма)',
+        r'^\s*<t[dh]>.*?№.*?</t[dh]>',
+        r'^\s*<t[dh]>.*?наименование.*?</t[dh]>',
+        r'^\s*<t[dh]>.*?товар.*?</t[dh]>',
+        r'^\s*\d+\s+\d+\s+\d+',
+        r'^\s*(?:номер|№)\s*(?:наименование|товар)',
+        r'^\s*<thead',
+        r'^\s*<tr',
+    ]
+
     for i, line in enumerate(lines):
         line_lower = line.lower().strip()
-        if any(
-            re.search(p, line_lower)
-            for p in [
-                r'^\s*№?\s*(?:наименование|товар|описание|ед\.|кол-во|количество|сумма)',
-                r'^\s*<t[dh]>.*?№.*?</t[dh]>',
-                r'^\s*\d+\s+\d+\s+\d+',
-                r'^\s*\|',
-            ]
-        ):
+        
+        # Skip lines that indicate end of table
+        if any(re.search(p, line_lower) for p in table_end_indicators):
+            continue
+            
+        if any(re.search(p, line_lower) for p in table_header_patterns):
             table_start = i
             break
+
+    # Second pass: try markdown table patterns (skip separator rows and end indicators)
+    if table_start == len(lines):
+        for i, line in enumerate(lines):
+            line_lower = line.lower().strip()
+            
+            # Skip lines that indicate end of table
+            if any(re.search(p, line_lower) for p in table_end_indicators):
+                continue
+            
+            # Skip markdown table separator rows (|---|---|)
+            if re.match(r'^\s*\|[\|\-\s]+\|', line):
+                continue
+                
+            if re.match(r'^\s*\|', line):
+                table_start = i
+                break
 
     # Find sections
     provider_start = len(lines)
