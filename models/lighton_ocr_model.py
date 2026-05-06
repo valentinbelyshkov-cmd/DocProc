@@ -222,19 +222,8 @@ class LightOnOCRModel(BaseModel):
 
     def _get_ocr_prompt(self) -> str:
         """Get optimized prompt for LightOnOCR model."""
-        return \"\"\"Извлеки текст с этого документа.
+        return ""
 
-ПРАВИЛА:
-1. Извлеки ВЕСЬ видимый текст БЕЗ изменений
-2. Сохрани структуру: заголовки, параграфы, таблицы
-3. Используй ТОЛЬКО допустимые символы: А-Яа-яЁё A-Z a-z 0-9 пробел . , ; : ( ) - / + =
-
-ФОРМАТ ОТВЕТА (ТОЛЬКО JSON):
-```json
-{"text": "весь извлечённый текст", "tables": [["заголовок1", "заголовок2"], ["ячейка1", "ячейка2"]]}
-```
-
-ВОИЗБЕГАЙ повторений! Если текст повторяется - остановись.\"\"\"
 
     def list_available_models(self) -> Optional[list]:
         """List available models in Ollama."""
