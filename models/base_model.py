@@ -58,7 +58,7 @@ class ModelConfig:
     retry_delay: float = 1.0
 
     # Language restrictions (for hallucination prevention)
-    allowed_chars_pattern: str = r'^[а-яА-ЯёЁa-zA-Z0-9\s.,:;()\-–—+=/§«»""'']+$'
+    allowed_chars_pattern: str = r'^[а-яА-ЯёЁa-zA-Z0-9\s.,:;()\-–—+=/§«»№°""''!@#$%^&*\[\]{}|\\<>?~`_]+$'
     allowed_languages: List[str] = field(default_factory=lambda: ['ru', 'en'])
 
     # Table extraction settings
@@ -256,17 +256,27 @@ class BaseModel(ABC):
 
             logger.warning(f"Не удалось распарсить JSON из ответа модели. Content: {content[:100]}...")
             
+            # Clean up content if it contains redundant headers
+            cleaned_content = content
+            redundant_patterns = [
+                r'^#\s+Страница\s+\d+\s*',
+                r'^##\s+Результаты\s+страница\s+\d+\s*',
+                r'^###\s*OCR\s+результат:?\s*',
+            ]
+            for pattern in redundant_patterns:
+                cleaned_content = re.sub(pattern, '', cleaned_content, flags=re.IGNORECASE | re.MULTILINE).strip()
+
             # Fallback: try to extract tables from markdown if present
             tables = []
-            if "|" in content and "\n" in content:
+            if "|" in cleaned_content and "\n" in cleaned_content:
                 try:
                     from processors.table_extractor import default_extractor
-                    tables = default_extractor.extract_tables(content)
+                    tables = default_extractor.extract_tables(cleaned_content)
                 except Exception as e:
                     logger.debug(f"Failed to extract markdown tables: {e}")
 
             return {
-                'text': content,
+                'text': cleaned_content,
                 'tables': tables,
                 'raw': None
             }
