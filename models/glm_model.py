@@ -101,6 +101,20 @@ class GLMOCRModel(BaseModel):
 
         try:
             logger.info(f"GLM-4V request: {self.url}")
+            
+            # Log payload for debugging (with truncated images to keep logs clean)
+            log_payload = json.loads(json.dumps(payload))
+            for msg in log_payload.get("messages", []):
+                content = msg.get("content")
+                if isinstance(content, list):
+                    for item in content:
+                        if isinstance(item, dict) and item.get("type") == "image_url":
+                            url = item.get("image_url", {}).get("url", "")
+                            if url.startswith("data:image"):
+                                item["image_url"]["url"] = f"{url[:100]}...[truncated {len(url)} chars]"
+            
+            logger.info(f"GLM-4V payload: {json.dumps(log_payload, ensure_ascii=False, indent=2)}")
+
             response = requests.post(
                 self.url,
                 headers=headers,

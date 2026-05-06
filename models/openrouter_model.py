@@ -92,7 +92,19 @@ class OpenRouterModel(BaseModel):
 
         try:
             logger.info(f"OpenRouter request: model={self.model}")
-            logger.info(f"OpenRouter payload: {json.dumps(generation_params, ensure_ascii=False, indent=2)}")
+            
+            # Log payload for debugging (with truncated images to keep logs clean)
+            log_payload = json.loads(json.dumps(generation_params))
+            for msg in log_payload.get("messages", []):
+                content = msg.get("content")
+                if isinstance(content, list):
+                    for item in content:
+                        if isinstance(item, dict) and item.get("type") == "image_url":
+                            url = item.get("image_url", {}).get("url", "")
+                            if url.startswith("data:image"):
+                                item["image_url"]["url"] = f"{url[:100]}...[truncated {len(url)} chars]"
+            
+            logger.info(f"OpenRouter payload: {json.dumps(log_payload, ensure_ascii=False, indent=2)}")
             
             response = requests.post(
                 self.url,
