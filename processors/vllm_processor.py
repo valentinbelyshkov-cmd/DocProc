@@ -292,7 +292,10 @@ class VLLMProcessor(BaseProcessor):
         # Extract tables
         tables = []
         for page in pages_results:
-            if 'tables' in page and page['tables']:
+            if 'result_data' in page and isinstance(page['result_data'], dict) and 'tables' in page['result_data']:
+                if page['result_data']['tables']:
+                    tables.extend(page['result_data']['tables'])
+            elif 'tables' in page and page['tables']:
                 tables.extend(page['tables'])
 
         return {
