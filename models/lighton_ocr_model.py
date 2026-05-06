@@ -1,6 +1,6 @@
 """
 Specialized Ollama model for LightOnOCR-2.
-Uses /api/generate endpoint instead of /api/chat for compatibility.
+Uses /api/chat endpoint with specific parameters for document OCR.
 """
 from typing import Optional, Dict, Any
 import requests
@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 class LightOnOCRModel(BaseModel):
     """
-    LightOnOCR-2 model via Ollama using /api/generate endpoint.
-    Optimized for document OCR tasks.
+    LightOnOCR-2 model via Ollama using /api/chat endpoint.
+    Optimized for document OCR tasks with large context.
     """
 
     def __init__(
@@ -31,14 +31,17 @@ class LightOnOCRModel(BaseModel):
         # Use default LightOnOCR config if not provided
         if config is None:
             config = ModelConfig.for_ocr()
+            # User requested 0.2 temperature and 4096 tokens
+            config.temperature = 0.2
+            config.max_tokens = 4096
 
         super().__init__(config)
         self.base_url = base_url or app_config.OLLAMA_BASE_URL
         self.model_name = model_name or app_config.NOCTRIX_MODEL
         self.name = f"lightonocr-{self.model_name}"
 
-        # Load context window size from config
-        self.num_ctx = app_config.OCR_MODEL_CONFIG.get('num_ctx', 8192)
+        # Load context window size from config (now 16384 by default)
+        self.num_ctx = app_config.OCR_MODEL_CONFIG.get('num_ctx', 16384)
         self.stop_sequences = self.config.stop_sequences
 
     def _image_to_base64(self, image: PIL.Image.Image) -> str:
@@ -93,40 +96,52 @@ class LightOnOCRModel(BaseModel):
         **kwargs
     ) -> GenerationResult:
         """
-        Generate response using Ollama /api/generate endpoint.
-        This endpoint is more compatible with vision models like LightOnOCR.
+        Generate response using Ollama /api/chat endpoint.
+        Follows specific rules for maternion/LightOnOCR-2.
         """
         # Try to resolve model name
         self._resolve_model_name()
 
-        # Prepare request payload for /api/generate
+        # Build messages
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+
+        user_message = {"role": "user"}
+        
+        # In test_glmocr.py, content is omitted, but we should include prompt if it exists
+        if prompt:
+            user_message["content"] = prompt
+            
+        # Add image as base64 for vision models
+        if image:
+            base64_image = self._image_to_base64(image)
+            user_message["images"] = [base64_image]
+
+        messages.append(user_message)
+
+        # Prepare request payload for /api/chat
         payload = {
             "model": self.model_name,
-            "prompt": prompt,
+            "messages": messages,
             "stream": False,
             "options": {
-                "temperature": self.config.temperature,  # Lower for OCR consistency
-                "num_predict": self.config.max_tokens,
-                "num_ctx": self.num_ctx,  # CRITICAL: context window size
-                "repeat_penalty": self.config.repetition_penalty,  # Higher penalty to prevent repetition
+                "num_ctx": 16384,      # glm-ocr / lightonocr require large context
+                "temperature": 0.2,    # minimal hallucinations
+                "num_predict": 4096,   # enough for large table
+                "repeat_penalty": self.config.repetition_penalty,
             }
         }
 
         # Add stop sequences if configured
         if self.stop_sequences:
-            payload["stop"] = self.stop_sequences
-
-        # Add image as base64 for vision models
-        if image:
-            base64_image = self._image_to_base64(image)
-            # Use images parameter at root level for /api/generate
-            payload["images"] = [base64_image]
+            payload["options"]["stop"] = self.stop_sequences
 
         try:
-            logger.info(f"LightOnOCR request: {self.base_url}/api/generate (model: {self.model_name})")
+            logger.info(f"LightOnOCR request: {self.base_url}/api/chat (model: {self.model_name})")
 
             response = requests.post(
-                f"{self.base_url}/api/generate",
+                f"{self.base_url}/api/chat",
                 json=payload,
                 timeout=self.config.timeout
             )
@@ -136,46 +151,29 @@ class LightOnOCRModel(BaseModel):
                 error_detail = ""
                 try:
                     error_json = response.json()
-                    error_detail = error_json.get('error', '') or str(error_json)
+                    error_detail = error_json.get('error', {}).get('message', '') or str(error_json)
                 except:
                     error_detail = response.text[:500] if response.text else "No response body"
                 
                 logger.error(f"LightOnOCR HTTP error {response.status_code}: {error_detail}")
                 
-                # Provide helpful error messages based on status code
+                # Provide helpful error messages
                 if response.status_code == 500:
-                    # Check for OOM in error detail
                     is_oom = any(kw in error_detail.lower() for kw in ['out of memory', 'oom', 'gpu', 'memory'])
-                    
-                    available = self.list_available_models()
-                    available_models = [m.get('name', 'unknown') for m in (available or [])]
-                    
                     if is_oom:
                         raise ValueError(
-                            f"Ollama сервер вернул ошибку 500 (OOM). Недостаточно GPU памяти для модели '{self.model_name}' с контекстом {self.num_ctx}. "
-                            f"Попробуйте уменьшить OLLAMA_NUM_CTX в настройках."
+                            f"Ollama сервер вернул ошибку 500 (OOM). Недостаточно GPU памяти для модели '{self.model_name}' с контекстом 16384."
                         )
-                        
-                    raise ValueError(
-                        f"Ollama сервер вернул ошибку 500. Возможные причины: "
-                        f"1) Модель '{self.model_name}' не установлена или повреждена; "
-                        f"2) Недостаточно GPU памяти; "
-                        f"3) Модель загружается. "
-                        f"Доступные модели: {available_models}. "
-                        f"Установите модель: ollama pull {self.model_name}"
-                    )
+                    raise ValueError(f"Ollama сервер вернул ошибку 500: {error_detail}")
                 elif response.status_code == 404:
-                    raise ValueError(
-                        f"Модель '{self.model_name}' не найдена в Ollama. "
-                        f"Установите её: ollama pull {self.model_name}"
-                    )
+                    raise ValueError(f"Модель '{self.model_name}' не найдена в Ollama.")
                 else:
                     raise ValueError(f"Ollama ошибка {response.status_code}: {error_detail}")
             
             response.raise_for_status()
 
             result = response.json()
-            content = result.get('response', '')
+            content = result.get('message', {}).get('content', '')
 
             return GenerationResult(
                 content=content,
@@ -186,7 +184,7 @@ class LightOnOCRModel(BaseModel):
             )
 
         except requests.exceptions.ConnectionError:
-            msg = f"Ollama не подключен по адресу {self.base_url}. Проверьте, запущен ли Ollama (ollama serve) и указан ли корректный OLLAMA_BASE_URL."
+            msg = f"Ollama не подключен по адресу {self.base_url}."
             logger.error(msg)
             return GenerationResult(content="", error=msg)
 
@@ -224,7 +222,7 @@ class LightOnOCRModel(BaseModel):
 
     def _get_ocr_prompt(self) -> str:
         """Get optimized prompt for LightOnOCR model."""
-        return """Извлеки текст с этого документа.
+        return \"\"\"Извлеки текст с этого документа.
 
 ПРАВИЛА:
 1. Извлеки ВЕСЬ видимый текст БЕЗ изменений
@@ -236,7 +234,7 @@ class LightOnOCRModel(BaseModel):
 {"text": "весь извлечённый текст", "tables": [["заголовок1", "заголовок2"], ["ячейка1", "ячейка2"]]}
 ```
 
-ВОИЗБЕГАЙ повторений! Если текст повторяется - остановись."""
+ВОИЗБЕГАЙ повторений! Если текст повторяется - остановись.\"\"\"
 
     def list_available_models(self) -> Optional[list]:
         """List available models in Ollama."""

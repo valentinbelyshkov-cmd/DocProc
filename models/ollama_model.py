@@ -34,7 +34,7 @@ class OllamaModel(BaseModel):
         self.name = f"ollama-{self.model_name}"
 
         # Load context window size from config
-        self.num_ctx = app_config.OCR_MODEL_CONFIG.get('num_ctx', 8192)
+        self.num_ctx = app_config.OCR_MODEL_CONFIG.get('num_ctx', 16384)
 
     def _image_to_base64(self, image: PIL.Image.Image) -> str:
         """Convert PIL Image to base64 string."""
@@ -103,7 +103,10 @@ class OllamaModel(BaseModel):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
 
-        user_message = {"role": "user", "content": prompt}
+        user_message = {"role": "user"}
+        if prompt:
+            user_message["content"] = prompt
+            
         if base64_image:
             user_message["images"] = [base64_image]
 
@@ -117,11 +120,11 @@ class OllamaModel(BaseModel):
 
         # Apply generation config
         payload["options"] = {
-            "temperature": self.config.temperature,
+            "temperature": 0.2 if "LightOnOCR" in self.model_name or "lighton" in self.model_name.lower() else self.config.temperature,
             "top_p": self.config.top_p,
             "top_k": self.config.top_k,
-            "num_predict": self.config.max_tokens,
-            "num_ctx": self.num_ctx,  # CRITICAL: context window size
+            "num_predict": 4096 if "LightOnOCR" in self.model_name or "lighton" in self.model_name.lower() else self.config.max_tokens,
+            "num_ctx": 16384 if "LightOnOCR" in self.model_name or "lighton" in self.model_name.lower() or "glm" in self.model_name.lower() else self.num_ctx,
             "stop": self.config.stop_sequences,
         }
 
