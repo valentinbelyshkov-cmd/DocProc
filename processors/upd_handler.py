@@ -228,9 +228,9 @@ class UPDHandler(BaseDocumentHandler):
                         value = match.group(0).strip()
 
                     if value and len(value) > 1:
+                        value = self.clean_field_value(field_name, value)
                         is_valid, confidence = self.validate_field(field_name, value)
                         if is_valid:
-                            value = self.clean_field_value(field_name, value)
                             break
                     else:
                         value = None
