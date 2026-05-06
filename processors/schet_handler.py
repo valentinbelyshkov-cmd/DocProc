@@ -192,8 +192,8 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'ИНН',
             'patterns': [
-                r'(?:инн|inn)\s*[:\-]?\s*(\d{10,12})',
-                r'\b(\d{10}|\d{12})\b',
+                r'(?:инн|inn|inн|iнн|иhh|1nn)\s*[:\-]?\s*(\d{10,12})',
+                r'\b(\d{10,12})\b',
             ],
             'required': True,
             'region': 'provider'
@@ -203,6 +203,7 @@ class SchetHandler(BaseDocumentHandler):
             'patterns': [
                 r'(?:бик|bik)[\s\n:<>/td]+(\d{9})',
                 r'\b(\d{9})\b(?=\s*(?:кпп|инн|р/с|сч|$))',
+                r'\b(\d{9})\b',
             ],
             'required': False,
             'region': 'bank'
@@ -224,6 +225,7 @@ class SchetHandler(BaseDocumentHandler):
             'patterns': [
                 r'(?:р/с|расч[её]тный\s+сч[её]т|лицевой\s+сч[её]т|сч\.?\s*№)[\s\n:<>/td]+(4\d{18,19})',
                 r'(?<!\d)(4\d{18,19})(?!\d)',
+                r'\b(4\d{19})\b',
             ],
             'required': False,
             'region': 'bank'
@@ -233,6 +235,7 @@ class SchetHandler(BaseDocumentHandler):
             'patterns': [
                 r'(?:корр[.,]?\s*сч[её]т|к/с|сч\.?\s*№)[\s\n:<>/td]+(301\d{16,17})',
                 r'(?<!\d)(301\d{16,17})(?!\d)',
+                r'\b(301\d{17})\b',
             ],
             'required': False,
             'region': 'bank'
@@ -240,7 +243,7 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Основание',
             'patterns': [
-                r'(?:основание|договор|контракт)\s*[:\-]?\s*(.+)',
+                r'(?:основание|договор|контракт|basis)\s*[:\-]?\s*(.+)',
                 r'(\d{5,}\s+(?:от|OT)\s+\d{1,2}[.,]\d{1,2}[.,]\d{2,4})',
             ],
             'required': False,
@@ -249,8 +252,9 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Итого',
             'patterns': [
-                r'(?:всего|итого)\s*(?:к\s*оплате|по\s*счету)?\s*[:\-]?\s*([\d\s]+[.,]\d{2})\s*(?:руб|₽|rur)?',
+                r'(?:всего|итого|total|sum)\s*(?:к\s*оплате|по\s*счету)?\s*[:\-]?\s*([\d\s]+[.,]\d{2})\s*(?:руб|₽|rur)?',
                 r'([\d\s]+[.,]\d{2})\s*(?:руб|₽|rur)',
+                r'сумма\s*[:\-]?\s*([\d\s,]+(?:[.,]\d{2})?)'
             ],
             'required': True,
             'region': 'footer'
@@ -258,6 +262,15 @@ class SchetHandler(BaseDocumentHandler):
     ]
 
     OPTIONAL_FIELDS = [
+        {
+            'name': 'КПП',
+            'patterns': [
+                r'(?:кпп|kpp|kпп|кpp)\s*[:\-]?\s*(\d{9})',
+                r'\b(\d{9})\b'
+            ],
+            'required': False,
+            'region': 'provider'
+        },
         {
             'name': 'Адрес поставщика',
             'patterns': [
@@ -271,7 +284,7 @@ class SchetHandler(BaseDocumentHandler):
 
     FIELD_REGIONS = {
         'header': ['Тип документа', 'Номер документа', 'Дата документа', 'Основание'],
-        'provider': ['Поставщик', 'ИНН', 'Адрес поставщика'],
+        'provider': ['Поставщик', 'ИНН', 'КПП', 'Адрес поставщика'],
         'bank': ['БИК', 'Наименование банка', 'Расчетный счет', 'Корр. счет'],
         'footer': ['Итого'],
         'table': ['Наименование', 'Кол-во', 'Цена', 'Сумма', 'Единица'],
