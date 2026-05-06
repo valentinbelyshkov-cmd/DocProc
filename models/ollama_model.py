@@ -42,6 +42,44 @@ class OllamaModel(BaseModel):
         image.save(buffered, format="PNG")
         return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
+    def _resolve_model_name(self):
+        """Try to resolve model name to an available one in Ollama."""
+        if getattr(self, "_model_name_resolved", False):
+            return
+
+        try:
+            available = self.list_available_models()
+            if not available:
+                return
+
+            available_names = [m.get('name') for m in available if m.get('name')]
+            
+            # If current model name is already in available models, do nothing
+            if self.model_name in available_names:
+                self._model_name_resolved = True
+                return
+
+            # Try adding :latest if no tag
+            if ":" not in self.model_name:
+                if f"{self.model_name}:latest" in available_names:
+                    logger.info(f"Resolved model name {self.model_name} to {self.model_name}:latest")
+                    self.model_name = f"{self.model_name}:latest"
+                    self._model_name_resolved = True
+                    return
+
+            # Try matching without tag
+            for name in available_names:
+                if ":" in name and name.split(":")[0] == self.model_name:
+                    logger.info(f"Resolved model name {self.model_name} to {name}")
+                    self.model_name = name
+                    self._model_name_resolved = True
+                    return
+            
+            # Mark as resolved even if no match found, to avoid repeated checks
+            self._model_name_resolved = True
+        except Exception as e:
+            logger.warning(f"Failed to resolve model name: {e}")
+
     def generate(
         self,
         prompt: str,
@@ -53,6 +91,9 @@ class OllamaModel(BaseModel):
         Generate response using Ollama API.
         Supports both text and image inputs for vision models.
         """
+        # Try to resolve model name if not already done
+        self._resolve_model_name()
+
         base64_image = None
         if image:
             base64_image = self._image_to_base64(image)
@@ -116,12 +157,22 @@ class OllamaModel(BaseModel):
                 # Provide helpful error messages based on status code
                 if response.status_code == 500:
                     # 500 errors often mean model not loaded or server issues
+                    # Check for OOM in error detail
+                    is_oom = any(kw in error_detail.lower() for kw in ['out of memory', 'oom', 'gpu', 'memory'])
+                    
                     # Try to list available models to help diagnose
                     available = self.list_available_models()
                     available_models = [m.get('name', 'unknown') for m in (available or [])]
+                    
+                    if is_oom:
+                        raise ValueError(
+                            f"Ollama сервер вернул ошибку 500 (OOM). Недостаточно GPU памяти для модели '{self.model_name}' с контекстом {self.num_ctx}. "
+                            f"Попробуйте уменьшить OLLAMA_NUM_CTX в настройках."
+                        )
+                    
                     raise ValueError(
                         f"Ollama сервер вернул ошибку 500. Возможные причины: "
-                        f"1) Модель '{self.model_name}' не установлена; "
+                        f"1) Модель '{self.model_name}' не установлена или повреждена; "
                         f"2) Недостаточно GPU памяти; "
                         f"3) Модель загружается. "
                         f"Доступные модели: {available_models}. "
@@ -159,6 +210,9 @@ class OllamaModel(BaseModel):
         except requests.exceptions.RequestException as e:
             logger.error(f"Ollama request failed: {e}")
             return GenerationResult(content="", error=f"Ошибка Ollama: {str(e)}")
+
+        except ValueError as e:
+            return GenerationResult(content="", error=str(e))
 
         except Exception as e:
             return GenerationResult(content="", error=f"Неизвестная ошибка: {str(e)}")

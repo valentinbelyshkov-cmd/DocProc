@@ -27,8 +27,8 @@ PADDLEOCR_VL_ENDPOINT = os.environ.get('PADDLEOCR_VL_ENDPOINT', '')
 
 # Ollama local LLM settings
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
-OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'glm-ocr')
-NOCTRIX_MODEL = os.environ.get('NOCTRIX_MODEL', 'maternion/LightOnOCR-2')
+OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'glm-ocr:latest')
+NOCTRIX_MODEL = os.environ.get('NOCTRIX_MODEL', 'maternion/LightOnOCR-2:latest')
 
 # Seal detection settings
 SEAL_DETECTOR_TYPE = os.environ.get('SEAL_DETECTOR_TYPE', 'yolo')
