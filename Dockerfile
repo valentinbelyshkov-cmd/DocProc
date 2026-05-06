@@ -1,4 +1,5 @@
 FROM python:3.9-slim
+
 # Используй зеркало Яндекса или Selectel
 # Меняем зеркало и ставим зависимости в ОДНОМ слое
 RUN sed -i 's|http://deb.debian.org/debian|http://mirror.yandex.ru/debian|g' /etc/apt/sources.list.d/debian.sources \
