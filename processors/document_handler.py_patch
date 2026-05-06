@@ -1,0 +1,26 @@
+    def validate_field(self, field_name: str, value: str) -> Tuple[bool, float]:
+        """
+        Validate a field value.
+        Returns (is_valid, confidence).
+        """
+        if not value:
+            return False, 0.0
+
+        confidence = 0.7 + (0.3 * min(len(value) / 20, 1.0))
+
+        # Numeric validation for INN, BIK, account numbers
+        numeric_fields = ['ИНН', 'БИК', 'Счет', 'Расчетный счет', 'Корр. счет', 'ИНН продавца', 'ИНН покупателя', 'ИНН исполнителя', 'ИНН заказчика']
+        if field_name in numeric_fields:
+            # Allow digits and spaces/dots/hyphens as common separators
+            clean_value = re.sub(r'[\s.\-/]', '', value)
+            if re.match(r'^\d+$', clean_value):
+                confidence = min(confidence + 0.1, 0.95)
+            else:
+                return False, 0.0
+
+        # Date validation
+        if field_name == 'Дата документа':
+            if re.search(r'[а-я]{3,}', value):
+                confidence = min(confidence + 0.2, 0.98)
+
+        return True, confidence
