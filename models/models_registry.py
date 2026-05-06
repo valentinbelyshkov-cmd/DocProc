@@ -6,7 +6,6 @@ from typing import Dict, Type, Optional, List
 from models.base_model import BaseModel, ModelConfig
 from models.openrouter_model import OpenRouterModel, OpenRouterClaudeModel, OpenRouterGeminiModel
 from models.glm_model import GLMOCRModel
-from models.paddle_vl_model import PaddleOCRVLModel
 from models.ollama_model import OllamaModel, NoctrixLightOnOCRModel
 from models.lighton_ocr_model import LightOnOCRModel
 import config as app_config
@@ -43,7 +42,7 @@ class ModelRegistry:
     @classmethod
     def get_default_model(cls) -> BaseModel:
         """Get the default model based on configuration."""
-        # Priority: OpenRouter > GLM > Ollama > PaddleOCR-VL
+        # Priority: OpenRouter > GLM > Ollama
         if app_config.OPENROUTER_API_KEY:
             return OpenRouterModel()
 
@@ -52,9 +51,6 @@ class ModelRegistry:
 
         if app_config.OLLAMA_BASE_URL:
             return OllamaModel()
-
-        if app_config.PADDLEOCR_VL_ENDPOINT:
-            return PaddleOCRVLModel()
 
         # Return OpenRouter by default (most widely compatible)
         return OpenRouterModel()
@@ -87,7 +83,6 @@ class ModelRegistry:
             'openrouter-claude': 'OpenRouter (Claude)',
             'openrouter-gemini': 'Google Gemini via OpenRouter',
             'glm': 'ZhipuAI GLM-4V',
-            'paddle-vl': 'PaddleOCR-VL',
             'ollama': 'Ollama (Local)',
             'ollama-glm': 'Ollama GLM-OCR',
             'noctrix': 'Noctrix LightOnOCR',
@@ -101,7 +96,6 @@ ModelRegistry.register('openrouter', OpenRouterModel)
 ModelRegistry.register('openrouter-claude', OpenRouterClaudeModel)
 ModelRegistry.register('openrouter-gemini', OpenRouterGeminiModel)
 ModelRegistry.register('glm', GLMOCRModel)
-ModelRegistry.register('paddle-vl', PaddleOCRVLModel)
 ModelRegistry.register('ollama', OllamaModel)
 ModelRegistry.register('ollama-glm', OllamaModel)
 ModelRegistry.register('noctrix', NoctrixLightOnOCRModel)

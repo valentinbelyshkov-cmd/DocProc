@@ -11,6 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class BaseVLLMModel(ABC):
     @abstractmethod
     def extract_tables(self, image: PIL.Image.Image) -> list:
@@ -19,6 +20,7 @@ class BaseVLLMModel(ABC):
         Returns a list of tables, where each table is a list of rows (list of strings).
         """
         pass
+
 
 class OpenRouterModel(BaseVLLMModel):
     def __init__(self, api_key=None, model="google/gemini-flash-1.5"):
@@ -72,7 +74,6 @@ class OpenRouterModel(BaseVLLMModel):
             content = result['choices'][0]['message']['content']
             logger.info("Received response from OpenRouter")
             
-            # Try to parse JSON from content
             try:
                 json_content = content
                 if "```json" in content:
@@ -91,10 +92,10 @@ class OpenRouterModel(BaseVLLMModel):
             logger.error(f"Error calling OpenRouter API: {e}")
             raise
 
+
 class GLMOCRModel(BaseVLLMModel):
     def __init__(self, api_key=None):
         self.api_key = api_key or config.ZHIPUAI_API_KEY
-        # GLM-OCR is often accessed via ZhipuAI API
         self.url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 
     def _image_to_base64(self, image):
@@ -114,8 +115,6 @@ class GLMOCRModel(BaseVLLMModel):
             "Content-Type": "application/json"
         }
         
-        # Correctly format for GLM-4V: use data:image prefix if needed or just base64 depending on API version
-        # For ZhipuAI API v4, it usually expects the data URL format for base64 images
         payload = {
             "model": "glm-4v", 
             "messages": [
@@ -144,7 +143,6 @@ class GLMOCRModel(BaseVLLMModel):
             logger.info("Successfully received response from ZhipuAI")
             
             try:
-                # Try to find JSON in the content
                 json_content = content
                 if "```json" in content:
                     json_content = content.split("```json")[1].split("```")[0].strip()
@@ -165,34 +163,6 @@ class GLMOCRModel(BaseVLLMModel):
             logger.error(f"Error calling ZhipuAI GLM API: {e}")
             raise
 
-class PaddleOCRVLModel(BaseVLLMModel):
-    def __init__(self, endpoint_url=None):
-        self.endpoint_url = endpoint_url or config.PADDLEOCR_VL_ENDPOINT
-
-    def extract_tables(self, image: PIL.Image.Image) -> list:
-        # Assuming PaddleOCR-VL-1.5 is hosted as a service
-        if not self.endpoint_url:
-            logger.error("PaddleOCR-VL-1.5 endpoint not configured")
-            return {"text": "PaddleOCR-VL-1.5 endpoint not configured", "tables": []}
-            
-        buffered = BytesIO()
-        image.save(buffered, format="PNG")
-        files = {'image': ('image.png', buffered.getvalue(), 'image/png')}
-        
-        try:
-            logger.info(f"Sending request to PaddleOCR-VL at {self.endpoint_url}")
-            response = requests.post(self.endpoint_url, files=files, timeout=config.OCR_MODEL_CONFIG.get('request_timeout', 300))
-            response.raise_for_status()
-            data = response.json()
-            logger.info("Received response from PaddleOCR-VL")
-            return {
-                "text": data.get('text', ''),
-                "tables": data.get('tables', [])
-            }
-        except Exception as e:
-            logger.error(f"Error calling PaddleOCR-VL: {e}")
-            return {"text": f"Error calling PaddleOCR-VL: {str(e)}", "tables": []}
-
 
 class OllamaModel(BaseVLLMModel):
     """Ollama local LLM with vision support (GLM-OCR, Noctrix LightOnOCR-2-1B, etc.)"""
@@ -207,11 +177,8 @@ class OllamaModel(BaseVLLMModel):
         return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
     def extract_tables(self, image: PIL.Image.Image) -> list:
-        import base64
-        
         base64_image = self._image_to_base64(image)
         
-        # Ollama API format
         payload = {
             "model": self.model_name,
             "messages": [
@@ -237,7 +204,6 @@ class OllamaModel(BaseVLLMModel):
             content = result.get('message', {}).get('content', '')
             logger.info(f"Received response from Ollama: {len(content)} chars")
             
-            # Parse JSON from response
             try:
                 json_content = content
                 if "```json" in content:
@@ -307,7 +273,6 @@ class NoctrixLightOnOCRModel(BaseVLLMModel):
             content = result.get('message', {}).get('content', '')
             logger.info("Received response from Noctrix LightOnOCR")
             
-            # Parse JSON
             try:
                 json_content = content
                 if "```json" in content:

@@ -17,13 +17,9 @@ MAX_CONTENT_LENGTH = 64 * 1024 * 1024  # 64 MB limit
 SECRET_KEY = os.environ.get('SECRET_KEY', 'default-secret-key')
 PERMANENT_SESSION_LIFETIME = timedelta(hours=1)
 
-# PaddleOCR API (external service)
-PADDLEOCR_API_URL = os.environ.get('PADDLEOCR_API_URL', 'http://paddleocr-api:8000')
-
 # VLLM API Keys
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 ZHIPUAI_API_KEY = os.environ.get('ZHIPUAI_API_KEY', '')
-PADDLEOCR_VL_ENDPOINT = os.environ.get('PADDLEOCR_VL_ENDPOINT', '')
 
 # Ollama local LLM settings
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
