@@ -183,8 +183,8 @@ class SchetHandler(BaseDocumentHandler):
             'name': 'Поставщик',
             'patterns': [
                 r'(?:поставщик|исполнитель|продавец)\s*[:\-]?\s*(?:["\']?)(ООО\s+"[^"]+"|АО\s+"[^"]+"|ПАО\s+"[^"]+"|ИП\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+)',
-                r'(?:поставщик|исполнитель|продавец)\s*[:\-]?\s*(?:ooo|ооо|ао|пао|ип)?\s*["\']?([\w\s"-]+?)(?:["\']?\s*,|\s*$|\s*инн)',
-                r'ИП\s+([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+)',
+                r'(?:поставщик|исполнитель|продавец)\s*[:\-]?\s*(?:ooo|ооо|ао|пао|ип|ит)?\s*["\']?([\w\s"-]+?)(?:["\']?\s*,|\s*$|\s*инн)',
+                r'(?:ИП|ИТ)\s+([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)?)',
             ],
             'required': True,
             'region': 'provider'
@@ -243,8 +243,8 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Основание',
             'patterns': [
-                r'(?:основание|договор|контракт|basis)\s*[:\-]?\s*(.+)',
-                r'(\d{5,}\s+(?:от|OT)\s+\d{1,2}[.,]\d{1,2}[.,]\d{2,4})',
+                r'(?:основание|договор|контракт|basis|по\s+договору)\s*[:\-]?\s*(.+)',
+                r'(?:^|\n)(?:[а-яё\s]+)?(?:№|#)?\s*(\d{5,}\s+(?:от|OT)\s+\d{1,2}(?:\s+[а-яё]+\s+|\.|\/)\d{2,4}(?:\s*г\.)?)',
             ],
             'required': False,
             'region': 'header'
@@ -252,10 +252,10 @@ class SchetHandler(BaseDocumentHandler):
         {
             'name': 'Итого',
             'patterns': [
-                r'(?:^|\n)\s*(?:и\s*того|всего|итого|total|sum)\s*(?:к\s*оплате|по\s*счету)?\s*[:\-—–\s]+\s*([\d\s.,]+[.,]\d{2})\s*(?:руб|₽|rur)?',
-                r'(?:^|\n)\s*([\d\s.,]+[.,]\d{2})\s*(?:руб|₽|rur)\s*$',
+                r'(?:^|\n)\s*(?:и\s*того|всего|итого|total|sum)\s*(?:к\s*оплате|по\s*счету)?\s*[:\-—–\s]+\s*([\d\s.,]+(?:[.,]\d{2})?)\s*(?:руб|₽|rur)?',
+                r'(?:^|\n)\s*([\d\s.,]+(?:[.,]\d{2})?)\s*(?:руб|₽|rur)\s*$',
                 r'сумма\s*[:\-—–\s]+\s*([\d\s,]+(?:[.,]\d{2})?)',
-                r'(?:всего|итого)[^\d\n]*([\d\s]+[.,]\d{2})',
+                r'(?:всего|итого)[^\d\n]*([\d\s.,]+(?:[.,]\d{2})?)',
             ],
             'required': True,
             'region': 'footer'
@@ -396,11 +396,11 @@ class SchetHandler(BaseDocumentHandler):
                         if value and len(value) > 1:
                             # Strip HTML tags from value
                             value = re.sub(r'<[^>]+>', '', value).strip()
+                            # Clean value before validation for better results
+                            value = self.clean_field_value(field_name, value)
                             
                             is_valid, confidence = self.validate_field(field_name, value)
                             if is_valid:
-                                value = self.clean_field_value(field_name, value)
-
                                 # Special bank name validation
                                 if field_name == 'Наименование банка':
                                     cleaned_name, conf = clean_bank_name(value, rec_texts)
