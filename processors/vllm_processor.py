@@ -17,7 +17,6 @@ from processors.base_processor import BaseTask, BaseProcessor
 from models.models_registry import ModelRegistry
 from models.base_model import ModelConfig
 from processors.handlers_registry import DocumentHandlerRegistry
-from models.seal_detector import get_seal_detector
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +178,14 @@ class VLLMProcessor(BaseProcessor):
 
             logger.info(f"Total pages to process: {task.total_pages}")
 
+            # Start seal detection in a separate thread if enabled
+            if task.detect_seal:
+                seal_thread = threading.Thread(
+                    target=self._run_seal_detection,
+                    args=(task_id, images)
+                )
+                seal_thread.start()
+
             # Get model
             model = self.get_model(task.model_name)
             if not model:
@@ -218,17 +225,11 @@ class VLLMProcessor(BaseProcessor):
                     result_data=result_data
                 )
 
-                # Detect seals if enabled
-                seals = []
-                if task.detect_seal:
-                    seals = self._detect_seals(img)
-
                 pages_results.append({
                     'page_num': i + 1,
                     'markdown': markdown,
                     'result_data': result_data,
-                    'result_json': [],
-                    'seals': seals
+                    'result_json': []
                 })
 
                 task.processed_pages += 1
@@ -288,26 +289,6 @@ class VLLMProcessor(BaseProcessor):
             markdown += str(result_data)
 
         return markdown
-
-    def _detect_seals(self, image: PIL.Image.Image) -> List[Dict]:
-        """Detect seals in image."""
-        try:
-            detector = get_seal_detector()
-            if not detector.is_available():
-                return []
-
-            results = detector.detect(image)
-            return [
-                {
-                    'bbox': r.bbox,
-                    'confidence': r.confidence,
-                    'seal_type': r.seal_type
-                }
-                for r in results
-            ]
-        except Exception as e:
-            logger.warning(f"Seal detection failed: {e}")
-            return []
 
     def _parse_documents(
         self,

@@ -9,6 +9,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 OUTPUT_FOLDER = os.path.join(BASE_DIR, 'output')
 DEBUG_IMAGES_FOLDER = os.path.join(BASE_DIR, 'debug_images')
+SEALS_FOLDER = os.path.join(OUTPUT_FOLDER, 'seals')
 
 # File handling
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff', 'webp', 'zip'}
@@ -29,7 +30,7 @@ NOCTRIX_MODEL = os.environ.get('NOCTRIX_MODEL', 'maternion/LightOnOCR-2:latest')
 
 # Seal detection settings
 SEAL_DETECTOR_TYPE = os.environ.get('SEAL_DETECTOR_TYPE', 'yolo')
-SEAL_MODEL_PATH = os.environ.get('SEAL_MODEL_PATH', '')
+SEAL_MODEL_PATH = os.environ.get('SEAL_MODEL_PATH', os.path.join(BASE_DIR, 'weights', 'best.pt'))
 SEAL_CONFIDENCE_THRESHOLD = float(os.environ.get('SEAL_CONFIDENCE_THRESHOLD', '0.5'))
 
 # OCR Model configuration

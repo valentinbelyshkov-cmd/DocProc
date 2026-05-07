@@ -49,6 +49,9 @@ if not os.path.exists(config.OUTPUT_FOLDER):
 if not os.path.exists(config.DEBUG_IMAGES_FOLDER):
     os.makedirs(config.DEBUG_IMAGES_FOLDER)
 
+if not os.path.exists(config.SEALS_FOLDER):
+    os.makedirs(config.SEALS_FOLDER)
+
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
@@ -158,7 +161,7 @@ def upload_file():
                             file_content = zf.read()
                             try:
                                 if model_name in ['tesseract', 'easyocr', 'pyocr']:
-                                    job_data = classic_processor.submit_job(z_filename, file_content, model_name)
+                                    job_data = classic_processor.submit_job(z_filename, file_content, model_name, detect_seal=detect_seal)
                                 else:
                                     job_data = vllm_processor.submit_job(z_filename, file_content, model_name, detect_seal=detect_seal)
                                 session['tasks'].append({'task_id': job_data['job_id'], 'filename': z_filename})
@@ -173,7 +176,7 @@ def upload_file():
         else:
             try:
                 if model_name in ['tesseract', 'easyocr', 'pyocr']:
-                    job_data = classic_processor.submit_job(filename, file_content, model_name)
+                    job_data = classic_processor.submit_job(filename, file_content, model_name, detect_seal=detect_seal)
                 else:
                     job_data = vllm_processor.submit_job(filename, file_content, model_name, detect_seal=detect_seal)
                 session['tasks'].append({'task_id': job_data['job_id'], 'filename': filename})
@@ -299,8 +302,9 @@ def list_seals(task_id):
     """List detected seals."""
     try:
         processor = get_processor(task_id)
-        if processor:
-            return jsonify({"seals": []})
+        if processor and task_id in processor.tasks:
+            task = processor.tasks[task_id]
+            return jsonify({"seals": task.seals})
         return jsonify({"seals": []})
     except Exception as e:
         logger.error(f"Error listing seals: {e}")
@@ -310,7 +314,14 @@ def list_seals(task_id):
 @app.route('/api/seal/<task_id>/<filename>')
 def get_seal(task_id, filename):
     """Get seal image."""
-    return "Печать не найдена", 404
+    try:
+        seal_path = os.path.join(config.SEALS_FOLDER, task_id, filename)
+        if os.path.exists(seal_path):
+            return send_file(seal_path, mimetype='image/png')
+        return "Печать не найдена", 404
+    except Exception as e:
+        logger.error(f"Error fetching seal image: {e}")
+        return "Печать не найдена", 404
 
 
 @app.route('/download_result/<task_id>')

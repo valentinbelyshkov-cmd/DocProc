@@ -299,16 +299,22 @@
                 .then(data => {
                     if (data.seals && data.seals.length > 0) {
                         container.innerHTML = '';
-                        data.seals.forEach(filename => {
+                        data.seals.forEach(seal => {
+                            const filename = seal.filename;
                             const imgWrapper = document.createElement('div');
-                            imgWrapper.className = 'border dark:border-gray-600 rounded p-1 bg-white dark:bg-gray-800 shadow-sm';
+                            imgWrapper.className = 'border dark:border-gray-600 rounded p-1 bg-white dark:bg-gray-800 shadow-sm flex flex-col items-center';
                             
                             const img = document.createElement('img');
                             img.src = `/api/seal/${taskId}/${filename}`;
                             img.alt = 'Печать';
                             img.className = 'max-h-24 object-contain';
                             
+                            const label = document.createElement('span');
+                            label.className = 'text-[10px] text-gray-500 mt-1';
+                            label.textContent = `${seal.seal_type} (${Math.round(seal.confidence * 100)}%)`;
+                            
                             imgWrapper.appendChild(img);
+                            imgWrapper.appendChild(label);
                             container.appendChild(imgWrapper);
                         });
                     } else {

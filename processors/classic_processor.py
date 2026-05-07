@@ -109,6 +109,7 @@ class ClassicProcessor(BaseProcessor):
         filename: str,
         content: bytes,
         engine: str = 'tesseract',
+        detect_seal: bool = False,
         **kwargs
     ) -> Dict[str, str]:
         """
@@ -118,6 +119,7 @@ class ClassicProcessor(BaseProcessor):
             filename: Original filename
             content: File content bytes
             engine: OCR engine to use ('tesseract', 'easyocr', 'pyocr')
+            detect_seal: Whether to detect seals
             **kwargs: Additional arguments
 
         Returns:
@@ -125,6 +127,7 @@ class ClassicProcessor(BaseProcessor):
         """
         task_id = str(uuid.uuid4())
         task = ClassicTask(task_id, filename, engine)
+        task.detect_seal = detect_seal
         self.tasks[task_id] = task
 
         thread = threading.Thread(
@@ -153,6 +156,15 @@ class ClassicProcessor(BaseProcessor):
             images = [optimize_image(img) for img in images]
             
             task.total_pages = len(images)
+
+            # Start seal detection in a separate thread if enabled
+            if task.detect_seal:
+                seal_thread = threading.Thread(
+                    target=self._run_seal_detection,
+                    args=(task_id, images)
+                )
+                seal_thread.start()
+
             pages_results = []
 
             for i, img in enumerate(images):
