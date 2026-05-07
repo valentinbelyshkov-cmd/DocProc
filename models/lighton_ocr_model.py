@@ -101,32 +101,19 @@ class LightOnOCRModel(BaseModel):
         # Try to resolve model name
         self._resolve_model_name()
 
-        # Build messages
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-
-        user_message = {"role": "user"}
-        
-        # In test_glmocr.py, content is omitted, but we should include prompt if it exists
-        if prompt:
-            user_message["content"] = prompt
-            
-        # Add image as base64 for vision models
-        if image:
-            base64_image = self._image_to_base64(image)
-            user_message["images"] = [base64_image]
-
-        messages.append(user_message)
-
-        # Prepare request payload for /api/chat
+        # Prepare request payload according to user specification
         payload = {
             "model": self.model_name,
-            "messages": messages,
+            "messages": [
+                {
+                    "role": "user",
+                    "images": [self._image_to_base64(image)] if image else []
+                }
+            ],
             "stream": False,
             "options": {
                 "num_ctx": 16384,      # glm-ocr / lightonocr require large context
-                "temperature": 0.2,    # minimal hallucinations
+                "temperature": 0.0,    # minimal hallucinations
                 "num_predict": 4096,   # enough for large table
             }
         }
@@ -183,7 +170,7 @@ class LightOnOCRModel(BaseModel):
                 content=content,
                 raw_response=result,
                 tokens_used=result.get('eval_count', 0),
-                finish_reason=result.get('done_reason', 'stop'),
+                finish_reason=result.get('done_reason', 'completed'),
                 model_name=self.model_name
             )
 

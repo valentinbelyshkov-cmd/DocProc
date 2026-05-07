@@ -116,7 +116,7 @@ class OpenRouterModel(BaseModel):
 
             result = response.json()
             content = result['choices'][0]['message']['content']
-            finish_reason = result['choices'][0].get('finish_reason', 'stop')
+            finish_reason = result['choices'][0].get('finish_reason', 'completed')
 
             usage = result.get('usage', {})
             tokens = usage.get('total_tokens', 0)
@@ -139,20 +139,10 @@ class OpenRouterModel(BaseModel):
 
     def _build_generation_params(self) -> Dict[str, Any]:
         """Build generation parameters from config."""
-        params = {}
-
-        # Core parameters
-        params["max_tokens"] = self.config.max_tokens
-        params["temperature"] = self.config.temperature
-        params["top_p"] = self.config.top_p
-        params["frequency_penalty"] = self.config.frequency_penalty
-        params["presence_penalty"] = self.config.presence_penalty
-
-        # Repetition penalty (key anti-hallucination parameter)
-        if self.config.repetition_penalty != 1.0:
-            params["repetition_penalty"] = self.config.repetition_penalty
-
-        return params
+        return {
+            "max_tokens": 4096,
+            "temperature": 0.0,
+        }
 
     def extract_text_and_tables(
         self,
@@ -210,12 +200,6 @@ class OpenRouterClaudeModel(OpenRouterModel):
             model="anthropic/claude-3-haiku",
             config=config or ModelConfig.for_ocr()
         )
-
-    def _build_generation_params(self) -> Dict[str, Any]:
-        """Claude doesn't use repetition_penalty, use penalty_weight instead."""
-        params = super()._build_generation_params()
-        params.pop("repetition_penalty", None)
-        return params
 
 
 class OpenRouterGeminiModel(OpenRouterModel):
