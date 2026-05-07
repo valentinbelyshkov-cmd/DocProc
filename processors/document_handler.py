@@ -78,7 +78,7 @@ class BaseDocumentHandler(ABC):
         confidence = 0.7 + (0.3 * min(len(value) / 20, 1.0))
 
         # Numeric validation for INN, BIK, account numbers
-        numeric_fields = ['ИНН', 'БИК', 'Счет', 'Расчетный счет', 'Корр. счет', 'ИНН продавца', 'ИНН покупателя', 'ИНН исполнителя', 'ИНН заказчика', 'КПП продавца', 'КПП покупателя', 'КПП']
+        numeric_fields = ['ИНН продавца', 'ИНН покупателя', 'КПП продавца', 'КПП покупателя', 'БИК', 'Расчетный счет', 'Корр. счет', 'ИНН']
         if field_name in numeric_fields:
             # Allow digits and spaces/dots/hyphens as common separators
             clean_value = re.sub(r'[\s.\-/]', '', value)
@@ -120,7 +120,7 @@ class BaseDocumentHandler(ABC):
             value = re.sub(pattern, '', value, flags=re.IGNORECASE)
 
         # For numeric fields, remove all spaces and common separators
-        numeric_fields = ['ИНН', 'БИК', 'Счет', 'Расчетный счет', 'Корр. счет', 'ИНН продавца', 'ИНН покупателя', 'ИНН исполнителя', 'ИНН заказчика', 'КПП продавца', 'КПП покупателя', 'КПП']
+        numeric_fields = ['ИНН продавца', 'ИНН покупателя', 'КПП продавца', 'КПП покупателя', 'БИК', 'Расчетный счет', 'Корр. счет', 'ИНН']
         if field_name in numeric_fields:
             value = re.sub(r'[\s.\-/]', '', value)
 

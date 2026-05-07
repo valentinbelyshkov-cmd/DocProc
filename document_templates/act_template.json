@@ -5,10 +5,10 @@
   
   "fields": {
     "header": {
-      "title": "Реквизиты акта",
+      "title": "Реквизиты документа",
       "fields": [
         {
-          "name": "Номер акта",
+          "name": "Номер документа",
           "key": "номер",
           "type": "string",
           "required": true,
@@ -16,7 +16,7 @@
           "label": "№"
         },
         {
-          "name": "Дата составления",
+          "name": "Дата документа",
           "key": "дата",
           "type": "date",
           "required": true,
@@ -35,7 +35,7 @@
       "title": "Основание",
       "fields": [
         {
-          "name": "Договор",
+          "name": "Основание",
           "key": "основание",
           "type": "string",
           "required": false,
@@ -44,43 +44,37 @@
       ]
     },
     "provider": {
-      "title": "Исполнитель",
+      "title": "Продавец",
       "fields": [
         {
-          "name": "Наименование",
+          "name": "Продавец",
           "key": "исполнитель",
           "type": "string",
           "required": true,
           "validation": "org_name"
         },
         {
-          "name": "ИНН",
+          "name": "ИНН продавца",
           "key": "инн_исполнителя",
           "type": "number",
           "required": false,
           "length": 10,
           "validation": "inn"
-        },
-        {
-          "name": "Адрес",
-          "key": "адрес_исполнителя",
-          "type": "string",
-          "required": false
         }
       ]
     },
     "customer": {
-      "title": "Заказчик",
+      "title": "Покупатель",
       "fields": [
         {
-          "name": "Наименование",
+          "name": "Покупатель",
           "key": "заказчик",
           "type": "string",
           "required": true,
           "validation": "org_name"
         },
         {
-          "name": "ИНН",
+          "name": "ИНН покупателя",
           "key": "инн_заказчика",
           "type": "number",
           "required": false,

@@ -7,7 +7,7 @@
   
   "fields": {
     "header": {
-      "title": "Реквизиты УПД",
+      "title": "Реквизиты документа",
       "fields": [
         {
           "name": "Номер документа",
@@ -18,7 +18,7 @@
           "label": "УПД №"
         },
         {
-          "name": "Дата составления",
+          "name": "Дата документа",
           "key": "дата",
           "type": "date",
           "required": true,
@@ -31,7 +31,7 @@
       "title": "Основание",
       "fields": [
         {
-          "name": "Договор",
+          "name": "Основание",
           "key": "основание",
           "type": "string",
           "required": false,
@@ -40,17 +40,17 @@
       ]
     },
     "provider": {
-      "title": "Продавец (Поставщик)",
+      "title": "Продавец",
       "fields": [
         {
-          "name": "Наименование",
+          "name": "Продавец",
           "key": "продавец",
           "type": "string",
           "required": true,
           "validation": "org_name"
         },
         {
-          "name": "ИНН",
+          "name": "ИНН продавца",
           "key": "инн_продавца",
           "type": "number",
           "required": true,
@@ -58,7 +58,7 @@
           "validation": "inn"
         },
         {
-          "name": "Адрес",
+          "name": "Адрес продавца",
           "key": "адрес_продавца",
           "type": "string",
           "required": false
@@ -79,17 +79,17 @@
       ]
     },
     "customer": {
-      "title": "Покупатель (Получатель)",
+      "title": "Покупатель",
       "fields": [
         {
-          "name": "Наименование",
+          "name": "Покупатель",
           "key": "покупатель",
           "type": "string",
           "required": true,
           "validation": "org_name"
         },
         {
-          "name": "ИНН",
+          "name": "ИНН покупателя",
           "key": "инн_покупателя",
           "type": "number",
           "required": true,
@@ -185,10 +185,10 @@
   },
 
   "footer": {
-    "title": "Итоги УПД",
+    "title": "Итоги",
     "fields": [
       {
-        "name": "Итого стоимость",
+        "name": "Итого",
         "key": "итого_стоимость",
         "type": "currency",
         "required": true

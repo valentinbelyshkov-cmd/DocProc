@@ -5,10 +5,10 @@
   
   "fields": {
     "header": {
-      "title": "Реквизиты счета",
+      "title": "Реквизиты документа",
       "fields": [
         {
-          "name": "Номер счета",
+          "name": "Номер документа",
           "key": "номер",
           "type": "string",
           "required": true,
@@ -16,7 +16,7 @@
           "label": "№"
         },
         {
-          "name": "Дата счета",
+          "name": "Дата документа",
           "key": "дата",
           "type": "date",
           "required": true,
@@ -26,17 +26,17 @@
       ]
     },
     "provider": {
-      "title": "Поставщик",
+      "title": "Продавец",
       "fields": [
         {
-          "name": "Наименование",
+          "name": "Продавец",
           "key": "поставщик",
           "type": "string",
           "required": true,
           "validation": "org_name"
         },
         {
-          "name": "ИНН",
+          "name": "ИНН продавца",
           "key": "инн",
           "type": "number",
           "required": true,
@@ -44,7 +44,7 @@
           "validation": "inn"
         },
         {
-          "name": "Адрес",
+          "name": "Адрес продавца",
           "key": "адрес",
           "type": "string",
           "required": false
@@ -90,7 +90,7 @@
       "title": "Основание",
       "fields": [
         {
-          "name": "Договор",
+          "name": "Основание",
           "key": "основание",
           "type": "string",
           "required": false,
