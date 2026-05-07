@@ -38,10 +38,10 @@ ENV PYTHONUNBUFFERED=1
 
 # Copy and make entrypoint script executable
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Expose port
 EXPOSE 8011
 
 # Run application
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
