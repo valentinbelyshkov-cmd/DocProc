@@ -28,8 +28,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Copy application files
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p uploads && chmod 777 uploads
+# Create necessary directories
+RUN mkdir -p uploads debug_images && chmod 777 uploads debug_images
 
 # Set environment variables
 ENV DOCKER_ENV=true
