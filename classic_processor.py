@@ -9,6 +9,36 @@ from pdf2image import convert_from_bytes
 
 logger = logging.getLogger(__name__)
 
+MAX_IMAGE_DIMENSION = 1920
+MAX_IMAGE_SIZE_KB = 300
+
+
+def optimize_image(img: PIL.Image.Image) -> PIL.Image.Image:
+    """Optimize image to fit within max dimension and file size limits."""
+    width, height = img.size
+    
+    # Calculate scaling factor to fit within max dimension
+    max_dim = max(width, height)
+    if max_dim > MAX_IMAGE_DIMENSION:
+        scale = MAX_IMAGE_DIMENSION / max_dim
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+        img = img.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
+    
+    # Compress to meet file size requirement
+    output = io.BytesIO()
+    img.save(output, format='JPEG', quality=85, optimize=True)
+    
+    while output.tell() > MAX_IMAGE_SIZE_KB * 1024 and output.tell() > 10240:
+        output.seek(0)
+        output.truncate()
+        current_quality = getattr(img, '_last_quality', 85)
+        new_quality = max(current_quality - 10, 30)
+        img.save(output, format='JPEG', quality=new_quality, optimize=True)
+    
+    output.seek(0)
+    return PIL.Image.open(output)
+
 try:
     import pytesseract
 except ImportError:
@@ -56,6 +86,9 @@ class ClassicProcessor:
                 images = convert_from_bytes(content)
             else:
                 images = [PIL.Image.open(io.BytesIO(content))]
+            
+            # Optimize all images before processing
+            images = [optimize_image(img) for img in images]
             
             task.total_pages = len(images)
             
