@@ -53,7 +53,6 @@ class OpenRouterModel(BaseVLLMModel):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
                             "image_url": {

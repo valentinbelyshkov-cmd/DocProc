@@ -5,7 +5,7 @@ import requests
 # === НАСТРОЙКИ ===
 OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL_NAME = "maternion/LightOnOCR-2:latest"  # или "qwen2.5-vl" если glm-ocr падает
-IMAGE_PATH = "111.jpg"    # укажи путь к своей УПД
+IMAGE_PATH = "2.jpg"    # укажи путь к своей УПД
 # =================
 
 def encode_image(path):
@@ -26,7 +26,7 @@ def main():
         "stream": False,
         "options": {
             "num_ctx": 16384,      # glm-ocr требует большой контекст
-            "temperature": 0.2,    # минимум галлюцинаций
+            "temperature": 0.0,    # минимум галлюцинаций
             "num_predict": 4096    # хватит на большую таблицу
         }
     }
