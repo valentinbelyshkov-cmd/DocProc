@@ -151,9 +151,9 @@ def _extract_regions(text: str) -> Dict[str, str]:
 
     for i, line in enumerate(lines):
         line_l = line.lower()
-        if provider_start == len(lines) and any(kw in line_l for kw in ['поставщик', 'продавец', 'исполнитель']):
+        if provider_start == len(lines) and any(kw in line_l for kw in ['поставщик', 'продавец', 'исполнитель', 'грузоотправитель']):
             provider_start = i
-        if customer_start == len(lines) and any(kw in line_l for kw in ['заказчик', 'покупатель', 'получатель']):
+        if customer_start == len(lines) and any(kw in line_l for kw in ['заказчик', 'покупатель', 'получатель', 'грузополучатель', 'приобретатель']):
             customer_start = i
         if bank_start == len(lines) and 'банк' in line_l:
             bank_start = i
