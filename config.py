@@ -39,7 +39,6 @@ OCR_MODEL_CONFIG = {
     # Generation parameters (anti-hallucination)
     'max_tokens': int(os.environ.get('OCR_MAX_TOKENS', '4096')),
     'temperature': float(os.environ.get('OCR_TEMPERATURE', '0.05')),
-    'repetition_penalty': float(os.environ.get('OCR_REPETITION_PENALTY', '1.4')),
 
     # Context window size for Ollama (CRITICAL for large documents)
     'num_ctx': int(os.environ.get('OLLAMA_NUM_CTX', '16384')),

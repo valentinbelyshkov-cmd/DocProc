@@ -125,11 +125,11 @@ class OllamaModel(BaseModel):
             "top_k": self.config.top_k,
             "num_predict": 4096 if "LightOnOCR" in self.model_name or "lighton" in self.model_name.lower() else self.config.max_tokens,
             "num_ctx": 16384 if "LightOnOCR" in self.model_name or "lighton" in self.model_name.lower() or "glm" in self.model_name.lower() else self.num_ctx,
-            "stop": self.config.stop_sequences,
         }
 
-        # Repetition penalty (Ollama uses repeat_penalty) - set high to prevent loops
-        payload["options"]["repeat_penalty"] = max(self.config.repetition_penalty, 1.4)
+        # Repetition penalty
+        if self.config.repetition_penalty != 1.0:
+            payload["options"]["repeat_penalty"] = self.config.repetition_penalty
 
         # Frequency/presence penalties
         if self.config.frequency_penalty != 0.0:

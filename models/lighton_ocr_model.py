@@ -42,7 +42,6 @@ class LightOnOCRModel(BaseModel):
 
         # Load context window size from config (now 16384 by default)
         self.num_ctx = app_config.OCR_MODEL_CONFIG.get('num_ctx', 16384)
-        self.stop_sequences = self.config.stop_sequences
 
     def _image_to_base64(self, image: PIL.Image.Image) -> str:
         """Convert PIL Image to base64 string."""
@@ -129,13 +128,8 @@ class LightOnOCRModel(BaseModel):
                 "num_ctx": 16384,      # glm-ocr / lightonocr require large context
                 "temperature": 0.2,    # minimal hallucinations
                 "num_predict": 4096,   # enough for large table
-                "repeat_penalty": self.config.repetition_penalty,
             }
         }
-
-        # Add stop sequences if configured
-        if self.stop_sequences:
-            payload["options"]["stop"] = self.stop_sequences
 
         try:
             logger.info(f"LightOnOCR request: {self.base_url}/api/chat (model: {self.model_name})")

@@ -29,9 +29,6 @@ class ModelConfig:
     # Repetition penalty prevents infinite loops
     repetition_penalty: float = 1.15
 
-    # Stop sequences for early termination
-    stop_sequences: List[str] = field(default_factory=lambda: ["```", "END", "###"])
-
     # Top-p sampling for output diversity
     top_p: float = 0.95
 
@@ -72,7 +69,6 @@ class ModelConfig:
         return cls(
             max_tokens=4096,
             temperature=0.05,
-            repetition_penalty=1.4,
             early_stopping=True,
             top_p=0.95,
         )
