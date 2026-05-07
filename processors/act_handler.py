@@ -64,7 +64,7 @@ class ActHandler(BaseDocumentHandler):
             'region': 'header'
         },
         {
-            'name': 'Исполнитель',
+            'name': 'Продавец',
             'patterns': [
                 r'исполнитель\s*[:\-]?\s*(.+)',
                 r'(?:исп|executor)\s*[:\-]?\s*(.+)',
@@ -74,7 +74,7 @@ class ActHandler(BaseDocumentHandler):
             'region': 'provider'
         },
         {
-            'name': 'ИНН исполнителя',
+            'name': 'ИНН продавца',
             'patterns': [
                 r'(?:инн|inn|inн|iнн|иhh|1nn)\s*(?:исполнителя)?\s*[:\-]?\s*(\d{10,12})',
                 r'\b(\d{10,12})\b'
@@ -83,7 +83,7 @@ class ActHandler(BaseDocumentHandler):
             'region': 'provider'
         },
         {
-            'name': 'Заказчик',
+            'name': 'Покупатель',
             'patterns': [
                 r'заказчик\s*[:\-]?\s*(.+)',
                 r'(?:заказ|customer)\s*[:\-]?\s*(.+)',
@@ -93,7 +93,7 @@ class ActHandler(BaseDocumentHandler):
             'region': 'customer'
         },
         {
-            'name': 'ИНН заказчика',
+            'name': 'ИНН покупателя',
             'patterns': [
                 r'(?:инн|inn|inн|iнн|иhh|1nn)\s*(?:заказчика)?\s*[:\-]?\s*(\d{10,12})',
                 r'\b(\d{10,12})\b'
@@ -141,8 +141,8 @@ class ActHandler(BaseDocumentHandler):
 
     FIELD_REGIONS = {
         'header': ['Тип документа', 'Номер документа', 'Дата документа', 'Основание', 'Место составления'],
-        'provider': ['Исполнитель', 'ИНН исполнителя'],
-        'customer': ['Заказчик', 'ИНН заказчика'],
+        'provider': ['Продавец', 'ИНН продавца'],
+        'customer': ['Покупатель', 'ИНН покупателя'],
         'bank': [],
         'footer': ['Итого'],
         'table': ['Наименование', 'Кол-во', 'Цена', 'Сумма', 'Единица'],

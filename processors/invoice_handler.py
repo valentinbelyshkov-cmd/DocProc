@@ -101,7 +101,7 @@ class InvoiceHandler(BaseDocumentHandler):
             'region': 'customer'
         },
         {
-            'name': 'Итого к оплате',
+            'name': 'Итого',
             'patterns': [
                 r'(?:^|\n)\s*(?:и\s*того|всего|итого|total|sum)\s*(?:к\s*оплате)?\s*[:\-—–\s]+\s*([\d\s.,]+[.,]\d{2})\s*(?:руб|₽|rur)?',
                 r'(?:^|\n)\s*([\d\s.,]+[.,]\d{2})\s*(?:руб|₽|rur)\s*$',
@@ -132,8 +132,8 @@ class InvoiceHandler(BaseDocumentHandler):
         'header': ['Тип документа', 'Номер документа', 'Дата документа'],
         'provider': ['Продавец', 'ИНН продавца'],
         'customer': ['Покупатель', 'ИНН покупателя', 'Грузополучатель'],
-        'bank': [],  # Usually not present in invoices
-        'footer': ['Итого к оплате'],
+        'bank': [],
+        'footer': ['Итого'],
         'table': ['Наименование товара', 'Количество', 'Цена', 'Сумма'],
     }
 
