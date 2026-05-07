@@ -120,6 +120,8 @@ def upload_file():
 
     model_name = request.form.get('model_name', 'glm-ocr')
     detect_seal = request.form.get('detect_seal') == 'on'
+    
+    logger.info(f"Upload received: model_name={model_name}, detect_seal={detect_seal}")
 
     if 'tasks' not in session:
         session['tasks'] = []
@@ -128,13 +130,19 @@ def upload_file():
 
     for file in uploaded_files:
         if not file.filename or not allowed_file(file.filename):
+            logger.warning(f"File skipped (invalid or no name): {file.filename}")
             continue
 
         filename = secure_filename(file.filename)
+        
+        # Read content to log its size
+        file_content = file.read()
+        content_length = len(file_content)
+        logger.info(f"Processing uploaded file: {filename}, size: {content_length} bytes")
 
         if filename.lower().endswith('.zip'):
             try:
-                zip_data = BytesIO(file.read())
+                zip_data = BytesIO(file_content)
                 with zipfile.ZipFile(zip_data) as z:
                     for zinfo in z.infolist():
                         if zinfo.is_dir():
@@ -161,7 +169,6 @@ def upload_file():
                 flash(f"Ошибка при обработке ZIP архива {filename}: {e}", 'error')
         else:
             try:
-                file_content = file.read()
                 if model_name in ['tesseract', 'easyocr', 'pyocr']:
                     job_data = classic_processor.submit_job(filename, file_content, model_name)
                 else:
