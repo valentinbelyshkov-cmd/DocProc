@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, List
 from pdf2image import convert_from_bytes
 import PIL.Image
 
+import config
 from processors.base_processor import BaseTask, BaseProcessor
 from models.models_registry import ModelRegistry
 from models.base_model import ModelConfig
@@ -196,6 +197,16 @@ class VLLMProcessor(BaseProcessor):
                 img.save(img_io, 'PNG')
                 img_io.seek(0)
                 task.images[i + 1] = img_io.getvalue()
+
+                # Save debug image
+                try:
+                    debug_filename = f"{task_id}_page_{i+1}.png"
+                    debug_path = os.path.join(config.DEBUG_IMAGES_FOLDER, debug_filename)
+                    with open(debug_path, "wb") as f:
+                        f.write(task.images[i + 1])
+                    logger.info(f"Saved debug image to {debug_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to save debug image: {e}")
 
                 # Extract text and tables
                 logger.info(f"Calling model {task.model_name} for OCR")

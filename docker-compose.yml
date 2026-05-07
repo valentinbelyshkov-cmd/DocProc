@@ -10,6 +10,7 @@ services:
       - "8011:8011"
     volumes:
       - ./uploads:/app/uploads
+      - ./debug_images:/app/debug_images
     environment:
       - DOCKER_ENV=true
       - PORT=8011

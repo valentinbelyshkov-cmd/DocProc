@@ -39,6 +39,7 @@ Thumbs.db
 
 # Project specific
 uploads/
+debug_images/
 output/*.json
 output/*.md
 *.log
