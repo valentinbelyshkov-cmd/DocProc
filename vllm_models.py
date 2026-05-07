@@ -61,7 +61,9 @@ class OpenRouterModel(BaseVLLMModel):
                         }
                     ]
                 }
-            ]
+            ],
+            "temperature": 0.0,
+            "max_tokens": 4096
         }
         
         try:
@@ -120,7 +122,6 @@ class GLMOCRModel(BaseVLLMModel):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Extract all text and tables from this image. Output tables in JSON format as a list of lists. Return both text and tables."},
                         {
                             "type": "image_url",
                             "image_url": {
@@ -129,7 +130,9 @@ class GLMOCRModel(BaseVLLMModel):
                         }
                     ]
                 }
-            ]
+            ],
+            "temperature": 0.0,
+            "max_tokens": 4096
         }
         
         try:
@@ -183,11 +186,15 @@ class OllamaModel(BaseVLLMModel):
             "messages": [
                 {
                     "role": "user",
-                    "content": "Extract all text and tables from this image. Output tables in JSON format as a list of lists. Return everything as a JSON object with 'text' and 'tables' fields.",
                     "images": [base64_image]
                 }
             ],
-            "stream": False
+            "stream": False,
+            "options": {
+                "num_ctx": 16384,      # glm-ocr требует большой контекст
+                "temperature": 0.0,    # минимум галлюцинаций
+                "num_predict": 4096    # хватит на большую таблицу
+            }
         }
         
         try:
@@ -252,11 +259,15 @@ class NoctrixLightOnOCRModel(BaseVLLMModel):
             "messages": [
                 {
                     "role": "user",
-                    "content": "Perform OCR on this image. Extract all text and tables. Return as JSON format with 'text' and 'tables' fields. Only return valid JSON.",
                     "images": [base64_image]
                 }
             ],
-            "stream": False
+            "stream": False,
+            "options": {
+                "num_ctx": 16384,      # glm-ocr требует большой контекст
+                "temperature": 0.0,    # минимум галлюцинаций
+                "num_predict": 4096    # хватит на большую таблицу
+            }
         }
         
         try:

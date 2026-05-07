@@ -46,6 +46,9 @@ if not os.path.exists(config.UPLOAD_FOLDER):
 if not os.path.exists(config.OUTPUT_FOLDER):
     os.makedirs(config.OUTPUT_FOLDER)
 
+if not os.path.exists(config.DEBUG_IMAGES_FOLDER):
+    os.makedirs(config.DEBUG_IMAGES_FOLDER)
+
 
 def allowed_file(filename):
     """Check if file extension is allowed."""

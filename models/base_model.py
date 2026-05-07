@@ -26,26 +26,14 @@ class ModelConfig:
     # Temperature controls randomness (lower = more deterministic)
     temperature: float = 0.1
 
-    # Repetition penalty prevents infinite loops
-    repetition_penalty: float = 1.15
-
     # Top-p sampling for output diversity
     top_p: float = 0.95
 
     # Top-k sampling
     top_k: int = 50
 
-    # Enable early stopping
-    early_stopping: bool = True
-
     # Number of output beams (for beam search)
     num_beams: int = 1
-
-    # Frequency penalty for repeated tokens
-    frequency_penalty: float = 0.0
-
-    # Presence penalty for topic diversity
-    presence_penalty: float = 0.0
 
     # Timeout for API calls
     timeout: int = app_config.OCR_MODEL_CONFIG.get('request_timeout', 120)
@@ -69,7 +57,6 @@ class ModelConfig:
         return cls(
             max_tokens=4096,
             temperature=0.05,
-            early_stopping=True,
             top_p=0.95,
         )
 
@@ -79,8 +66,6 @@ class ModelConfig:
         return cls(
             max_tokens=512,
             temperature=0.05,
-            repetition_penalty=1.2,
-            early_stopping=True,
             top_p=0.9,
         )
 
@@ -90,8 +75,6 @@ class ModelConfig:
         return cls(
             max_tokens=2048,
             temperature=0.1,
-            repetition_penalty=1.1,
-            early_stopping=True,
             table_extraction_enabled=True,
         )
 
@@ -102,7 +85,7 @@ class GenerationResult:
     content: str
     raw_response: Any = None
     tokens_used: int = 0
-    finish_reason: str = "stop"
+    finish_reason: str = "completed"
     model_name: Optional[str] = None
     error: Optional[str] = None
 
@@ -298,11 +281,5 @@ class BaseModel(ABC):
 
         if self.config.max_tokens > 4096:
             warnings.append("Слишком большой лимит токенов может привести к избыточному генерации")
-
-        if self.config.repetition_penalty < 1.1:
-            warnings.append("Низкий penalty за повторы может привести к зацикливанию")
-
-        if self.config.early_stopping is False:
-            warnings.append("Отключен early stopping - модель может генерировать бесконечно")
 
         return warnings

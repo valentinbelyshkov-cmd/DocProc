@@ -98,44 +98,22 @@ class OllamaModel(BaseModel):
         if image:
             base64_image = self._image_to_base64(image)
 
-        # Build messages
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-
-        user_message = {"role": "user"}
-        if prompt:
-            user_message["content"] = prompt
-            
-        if base64_image:
-            user_message["images"] = [base64_image]
-
-        messages.append(user_message)
-
+        # Build payload according to user specification
         payload = {
             "model": self.model_name,
-            "messages": messages,
+            "messages": [
+                {
+                    "role": "user",
+                    "images": [base64_image] if base64_image else []
+                }
+            ],
             "stream": False,
+            "options": {
+                "num_ctx": 16384,      # glm-ocr требует большой контекст
+                "temperature": 0.0,    # минимум галлюцинаций
+                "num_predict": 4096    # хватит на большую таблицу
+            }
         }
-
-        # Apply generation config
-        payload["options"] = {
-            "temperature": 0.2 if "LightOnOCR" in self.model_name or "lighton" in self.model_name.lower() else self.config.temperature,
-            "top_p": self.config.top_p,
-            "top_k": self.config.top_k,
-            "num_predict": 4096 if "LightOnOCR" in self.model_name or "lighton" in self.model_name.lower() else self.config.max_tokens,
-            "num_ctx": 16384 if "LightOnOCR" in self.model_name or "lighton" in self.model_name.lower() or "glm" in self.model_name.lower() else self.num_ctx,
-        }
-
-        # Repetition penalty
-        if self.config.repetition_penalty != 1.0:
-            payload["options"]["repeat_penalty"] = self.config.repetition_penalty
-
-        # Frequency/presence penalties
-        if self.config.frequency_penalty != 0.0:
-            payload["options"]["frequency_penalty"] = self.config.frequency_penalty
-        if self.config.presence_penalty != 0.0:
-            payload["options"]["presence_penalty"] = self.config.presence_penalty
 
         try:
             logger.info(f"Ollama request: {self.base_url}/api/chat (model: {self.model_name})")
@@ -208,7 +186,7 @@ class OllamaModel(BaseModel):
                 content=content,
                 raw_response=result,
                 tokens_used=result.get('eval_count', 0),
-                finish_reason=result.get('done_reason', 'stop'),
+                finish_reason=result.get('done_reason', 'completed'),
                 model_name=self.model_name
             )
 
