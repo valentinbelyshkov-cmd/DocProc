@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Create necessary directories
 mkdir -p /app/uploads
@@ -7,4 +7,5 @@ mkdir -p /app/debug_images
 chmod 777 /app/debug_images
 
 # Start the Flask application
-exec python /app/app.py
+# Use python3 to be more explicit for Debian-based images
+exec python3 /app/app.py
