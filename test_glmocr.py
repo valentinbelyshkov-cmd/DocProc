@@ -26,7 +26,7 @@ def main():
         "stream": False,
         "options": {
             "num_ctx": 16384,      # glm-ocr требует большой контекст
-            "temperature": 0.2,    # минимум галлюцинаций
+            "temperature": 0.0,    # минимум галлюцинаций
             "num_predict": 4096    # хватит на большую таблицу
         }
     }

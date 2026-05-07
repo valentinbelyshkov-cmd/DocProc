@@ -71,7 +71,6 @@ class ModelRegistry:
             'config': {
                 'temperature': temp_model.config.temperature,
                 'max_tokens': temp_model.config.max_tokens,
-                'repetition_penalty': temp_model.config.repetition_penalty,
             }
         }
 

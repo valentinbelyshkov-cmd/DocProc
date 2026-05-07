@@ -90,12 +90,10 @@ class GLMOCRModel(BaseModel):
         }
 
         # Apply config
-        if self.config.temperature:
-            payload["temperature"] = self.config.temperature
-        if self.config.max_tokens:
-            payload["max_tokens"] = self.config.max_tokens
-        if self.config.top_p:
-            payload["top_p"] = self.config.top_p
+        payload.update({
+            "temperature": 0.0,
+            "max_tokens": 4096
+        })
 
         try:
             logger.info(f"GLM-4V request: {self.url}")
@@ -123,7 +121,7 @@ class GLMOCRModel(BaseModel):
 
             result = response.json()
             content = result['choices'][0]['message']['content']
-            finish_reason = result['choices'][0].get('finish_reason', 'stop')
+            finish_reason = result['choices'][0].get('finish_reason', 'completed')
 
             usage = result.get('usage', {})
             tokens = usage.get('total_tokens', 0)
