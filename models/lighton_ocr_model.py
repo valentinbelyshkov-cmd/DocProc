@@ -144,7 +144,8 @@ class LightOnOCRModel(BaseModel):
             log_payload = json.loads(json.dumps(payload))
             for msg in log_payload.get("messages", []):
                 if "images" in msg and msg["images"]:
-                    msg["images"] = [f"{img[:50]}...[truncated {len(img)} chars]"]
+                    img_data = msg["images"][0]
+                    msg["images"] = [f"{img_data[:50]}...[truncated {len(img_data)} chars]"]
             
             logger.info(f"LightOnOCR payload: {json.dumps(log_payload, ensure_ascii=False, indent=2)}")
 
