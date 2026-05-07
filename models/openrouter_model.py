@@ -152,10 +152,6 @@ class OpenRouterModel(BaseModel):
         if self.config.repetition_penalty != 1.0:
             params["repetition_penalty"] = self.config.repetition_penalty
 
-        # Stop sequences
-        if self.config.stop_sequences:
-            params["stop"] = self.config.stop_sequences
-
         return params
 
     def extract_text_and_tables(

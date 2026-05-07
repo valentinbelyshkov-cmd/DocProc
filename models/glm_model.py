@@ -96,8 +96,6 @@ class GLMOCRModel(BaseModel):
             payload["max_tokens"] = self.config.max_tokens
         if self.config.top_p:
             payload["top_p"] = self.config.top_p
-        if self.config.stop_sequences:
-            payload["stop"] = self.config.stop_sequences
 
         try:
             logger.info(f"GLM-4V request: {self.url}")
