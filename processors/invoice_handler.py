@@ -37,7 +37,10 @@ class InvoiceHandler(BaseDocumentHandler):
     REQUIRED_FIELDS = [
         {
             'name': 'Тип документа',
-            'patterns': [r'((?:Счет|Sчeт)-фактура)', r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'],
+            'patterns': [
+                r'((?:Счет|Sчeт)-фактура)',
+                r'(?:^|\n)\s*(?:тип\s+)?документа\s*[:\-]?\s*(.+)'
+            ],
             'required': True,
             'region': 'header'
         },
