@@ -155,7 +155,7 @@ class SchetHandler(BaseDocumentHandler):
             'name': 'Тип документа',
             'patterns': [
                 r'((?:Счет|Sчeт)\s+на\s+оплату)',
-                r'(?:тип\s+)?документа\s*[:\-]?\s*(.+)'
+                r'(?:^|\n)\s*(?:тип\s+)?документа\s*[:\-]?\s*(.+)'
             ],
             'required': True,
             'region': 'header'
