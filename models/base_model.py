@@ -194,6 +194,10 @@ class BaseModel(ABC):
         Default implementation uses generate() method.
         """
         prompt = custom_prompt or self._get_default_ocr_prompt()
+        
+        # Log image dimensions
+        width, height = image.size
+        logger.info(f"Extracting text and tables from image: {width}x{height}")
 
         result = self.generate(prompt, image=image)
 
@@ -203,6 +207,9 @@ class BaseModel(ABC):
                 'tables': [],
                 'raw': None
             }
+
+        # Log raw content before cleaning
+        logger.info(f"Raw content from model before cleaning: {result.content}")
 
         # Try to parse JSON from response
         content = result.clean_output()
@@ -227,6 +234,8 @@ class BaseModel(ABC):
     def _parse_response(self, content: str) -> Dict[str, Any]:
         """Parse JSON response from model."""
         import json
+        
+        logger.info(f"Raw response content from model: {content}")
 
         # Direct try
         try:

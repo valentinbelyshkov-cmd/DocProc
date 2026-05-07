@@ -27,6 +27,7 @@ MAX_IMAGE_SIZE_KB = 300
 def optimize_image(img: PIL.Image.Image) -> PIL.Image.Image:
     """Optimize image to fit within max dimension and file size limits."""
     width, height = img.size
+    logger.info(f"Optimizing image: initial dimensions {width}x{height}")
     
     # Calculate scaling factor to fit within max dimension
     max_dim = max(width, height)
@@ -34,11 +35,14 @@ def optimize_image(img: PIL.Image.Image) -> PIL.Image.Image:
         scale = MAX_IMAGE_DIMENSION / max_dim
         new_width = int(width * scale)
         new_height = int(height * scale)
+        logger.info(f"Resizing image from {width}x{height} to {new_width}x{new_height}")
         img = img.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
     
     # Compress to meet file size requirement
     output = io.BytesIO()
     img.save(output, format='JPEG', quality=85, optimize=True)
+    initial_compressed_size = output.tell()
+    logger.info(f"Initial compressed size: {initial_compressed_size / 1024:.2f} KB")
     
     while output.tell() > MAX_IMAGE_SIZE_KB * 1024 and output.tell() > 10240:
         output.seek(0)
@@ -46,7 +50,11 @@ def optimize_image(img: PIL.Image.Image) -> PIL.Image.Image:
         current_quality = getattr(img, '_last_quality', 85)
         new_quality = max(current_quality - 10, 30)
         img.save(output, format='JPEG', quality=new_quality, optimize=True)
+        img._last_quality = new_quality
+        logger.info(f"Compressed further: {output.tell() / 1024:.2f} KB (quality={new_quality})")
     
+    final_size = output.tell()
+    logger.info(f"Final optimized image size: {final_size / 1024:.2f} KB, dimensions: {img.size[0]}x{img.size[1]}")
     output.seek(0)
     return PIL.Image.open(output)
 
@@ -157,7 +165,12 @@ class VLLMProcessor(BaseProcessor):
                 images = [PIL.Image.open(io.BytesIO(content))]
             
             # Optimize all images before processing
-            images = [optimize_image(img) for img in images]
+            optimized_images = []
+            for i, img in enumerate(images):
+                logger.info(f"Optimizing page {i+1}/{len(images)}")
+                opt_img = optimize_image(img)
+                optimized_images.append(opt_img)
+            images = optimized_images
             
             task.total_pages = len(images)
             if task.total_pages == 0:
@@ -176,7 +189,7 @@ class VLLMProcessor(BaseProcessor):
             # Process each page
             pages_results = []
             for i, img in enumerate(images):
-                logger.info(f"Processing page {i + 1}/{task.total_pages}")
+                logger.info(f"Processing page {i + 1}/{task.total_pages}, dimensions: {img.size[0]}x{img.size[1]}")
 
                 # Store image
                 img_io = io.BytesIO()

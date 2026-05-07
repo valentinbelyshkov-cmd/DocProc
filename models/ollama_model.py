@@ -201,6 +201,7 @@ class OllamaModel(BaseModel):
             response.raise_for_status()
 
             result = response.json()
+            logger.info(f"Ollama raw JSON response: {json.dumps(result, ensure_ascii=False)}")
             content = result.get('message', {}).get('content', '')
 
             return GenerationResult(
