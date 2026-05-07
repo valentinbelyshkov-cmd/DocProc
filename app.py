@@ -388,6 +388,16 @@ def get_extracted_data(task_id):
         return jsonify({"error": str(e)})
 
 
+@app.route('/api/template/<doc_type>')
+def get_template_api(doc_type):
+    """Get document template by type."""
+    from document_templates.template_manager import DocumentTemplateManager
+    template = DocumentTemplateManager.get_template(doc_type)
+    if template:
+        return jsonify(DocumentTemplateManager.template_to_dict(template))
+    return jsonify({"error": "Template not found"}), 404
+
+
 @app.route('/new_conversion')
 def new_conversion():
     """Start new conversion (clear session)."""

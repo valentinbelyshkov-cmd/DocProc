@@ -157,11 +157,10 @@
             const taskId = "{{ task_id }}";
             
             loadExtractedData(taskId);
-            loadTables(taskId);
             loadSeals(taskId);
         });
         
-        function loadExtractedData(taskId) {
+        async function loadExtractedData(taskId) {
             const loadingIndicator = document.getElementById('loading-indicator');
             const documentInfo = document.getElementById('document-info');
             const fieldsContainer = document.getElementById('fields-container');
@@ -170,127 +169,228 @@
             const docConfidenceEl = document.getElementById('doc-confidence');
             const fieldsTableBody = document.getElementById('fields-table-body');
             const downloadBtn = document.getElementById('download-extracted-btn');
-            
-            fetch(`/api/extracted_data/${taskId}`)
-                .then(response => response.json())
-                .then(data => {
-                    loadingIndicator.classList.add('hidden');
-                    
-                    if (data.document_type && data.fields && data.fields.length > 0) {
-                        documentInfo.classList.remove('hidden');
-                        fieldsContainer.classList.remove('hidden');
-                        
-                        docTypeEl.textContent = data.document_type;
-                        docConfidenceEl.textContent = Math.round(data.type_confidence * 100) + '%';
-                        
-                        const typeColor = data.type_confidence > 0.7 ? 'bg-green-600' : 
-                                         data.type_confidence > 0.5 ? 'bg-yellow-600' : 'bg-red-600';
-                        docTypeEl.className = `px-3 py-1 ${typeColor} text-white rounded-full text-sm font-medium`;
-                        
-                        const confColorClass = data.type_confidence > 0.7 ? 'text-green-600 dark:text-green-400' :
-                                              data.type_confidence > 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 
-                                              'text-red-600 dark:text-red-400';
-                        docConfidenceEl.className = `font-medium ${confColorClass}`;
-                        
-                        fieldsTableBody.innerHTML = '';
-                        data.fields.forEach(field => {
-                            const row = document.createElement('tr');
-                            row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
-                            
-                            const confidence = parseFloat(field.confidence) || 0;
-                            const confPercent = Math.round(confidence * 100);
-                            const confClass = confidence > 0.8 ? 'confidence-high' :
-                                             confidence > 0.5 ? 'confidence-medium' : 'confidence-low';
-                            
-                            row.innerHTML = `
-                                <td class="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">${escapeHtml(field.field)}</td>
-                                <td class="px-4 py-2 text-gray-900 dark:text-gray-100">${escapeHtml(field.value || '—')}</td>
-                                <td class="px-4 py-2 ${confClass} font-medium">${confPercent > 0 ? confPercent + '%' : '—'}</td>
-                            `;
-                            fieldsTableBody.appendChild(row);
-                        });
-                        
-                        downloadBtn.href = `/download_result/${taskId}?format=extracted`;
-                    } else {
-                        noDocumentMsg.classList.remove('hidden');
-                    }
-                })
-                .catch(err => {
-                    console.error('Error loading extracted data:', err);
-                    loadingIndicator.classList.add('hidden');
-                    noDocumentMsg.classList.remove('hidden');
-                    noDocumentMsg.querySelector('p').textContent = 'Ошибка при загрузке данных';
-                });
-        }
-        
-        function loadTables(taskId) {
             const tablesContainer = document.getElementById('tables-container');
             const tablesLoading = document.getElementById('tables-loading');
             
-            fetch(`/api/extracted_data/${taskId}`)
-                .then(response => response.json())
-                .then(data => {
-                    tablesLoading.remove();
+            try {
+                const response = await fetch(`/api/extracted_data/${taskId}`);
+                const data = await response.json();
+                
+                loadingIndicator.classList.add('hidden');
+                
+                if (data.document_type && data.fields && data.fields.length > 0) {
+                    documentInfo.classList.remove('hidden');
+                    fieldsContainer.classList.remove('hidden');
                     
-                    if (data.tables && data.tables.length > 0) {
-                        data.tables.forEach((table, index) => {
-                            if (index >= 3) return;
-                            
-                            const tableWrapper = document.createElement('div');
-                            tableWrapper.className = 'border dark:border-gray-600 rounded-lg overflow-hidden';
-                            
-                            const header = document.createElement('div');
-                            header.className = 'bg-gray-100 dark:bg-gray-700 px-4 py-2 font-medium text-gray-700 dark:text-gray-300';
-                            header.textContent = `Таблица ${index + 1} (${table.length} строк × ${Math.max(...table.map(r => r.length))} колонок)`;
-                            tableWrapper.appendChild(header);
-                            
-                            const scrollContainer = document.createElement('div');
-                            scrollContainer.className = 'table-container';
-                            
-                            const tableEl = document.createElement('table');
-                            tableEl.className = 'min-w-full divide-y divide-gray-200 dark:divide-gray-600';
-                            
-                            const tbody = document.createElement('tbody');
-                            tbody.className = 'divide-y divide-gray-200 dark:divide-gray-600';
-                            
-                            table.forEach((row, rowIdx) => {
-                                const tr = document.createElement('tr');
-                                tr.className = rowIdx === 0 ? 'bg-gray-50 dark:bg-gray-700 font-medium' : 
-                                              'hover:bg-gray-50 dark:hover:bg-gray-700';
-                                
-                                row.forEach(cell => {
-                                    const td = document.createElement('td');
-                                    td.className = 'px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap';
-                                    td.textContent = cell;
-                                    tr.appendChild(td);
-                                });
-                                
-                                tbody.appendChild(tr);
-                            });
-                            
-                            tableEl.appendChild(tbody);
-                            scrollContainer.appendChild(tableEl);
-                            tableWrapper.appendChild(scrollContainer);
-                            tablesContainer.appendChild(tableWrapper);
-                        });
-                    } else {
-                        tablesContainer.innerHTML = `
-                            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                </svg>
-                                <p class="mt-2">Таблицы в документе не найдены</p>
-                            </div>
-                        `;
+                    docTypeEl.textContent = data.document_type;
+                    docConfidenceEl.textContent = Math.round(data.type_confidence * 100) + '%';
+                    
+                    const typeColor = data.type_confidence > 0.7 ? 'bg-green-600' : 
+                                     data.type_confidence > 0.5 ? 'bg-yellow-600' : 'bg-red-600';
+                    docTypeEl.className = `px-3 py-1 ${typeColor} text-white rounded-full text-sm font-medium`;
+                    
+                    const confColorClass = data.type_confidence > 0.7 ? 'text-green-600 dark:text-green-400' :
+                                          data.type_confidence > 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 
+                                          'text-red-600 dark:text-red-400';
+                    docConfidenceEl.className = `font-medium ${confColorClass}`;
+                    
+                    // Try to fetch template
+                    let template = null;
+                    try {
+                        const tResp = await fetch(`/api/template/${encodeURIComponent(data.document_type)}`);
+                        if (tResp.ok) {
+                            template = await tResp.json();
+                        }
+                    } catch (e) {
+                        console.warn('Template not found for', data.document_type);
                     }
-                })
-                .catch(err => {
-                    console.error('Error loading tables:', err);
-                    tablesLoading.remove();
-                    tablesContainer.innerHTML = '<p class="text-red-500">Ошибка при загрузке таблиц</p>';
-                });
+
+                    fieldsTableBody.innerHTML = '';
+                    
+                    if (template && template.fields) {
+                        // Group by template sections
+                        for (const sectionKey in template.fields) {
+                            const section = template.fields[sectionKey];
+                            
+                            // Check if any fields from this section exist in data
+                            const sectionFields = section.fields.map(f => f.name);
+                            const hasAny = data.fields.some(f => sectionFields.includes(f.field));
+                            
+                            if (hasAny) {
+                                // Add section header
+                                const sectionRow = document.createElement('tr');
+                                sectionRow.className = 'bg-gray-50 dark:bg-gray-700/50';
+                                sectionRow.innerHTML = `
+                                    <td colspan="3" class="px-4 py-2 font-bold text-gray-800 dark:text-gray-200 uppercase text-xs tracking-wider">
+                                        ${escapeHtml(section.title)}
+                                    </td>
+                                `;
+                                fieldsTableBody.appendChild(sectionRow);
+                                
+                                section.fields.forEach(fieldDef => {
+                                    // Find matching extracted field
+                                    const extractedField = data.fields.find(f => f.field === fieldDef.name);
+                                    if (extractedField) {
+                                        addFieldRow(fieldsTableBody, extractedField);
+                                    }
+                                });
+                            }
+                        }
+                        
+                        // Add remaining fields not in template
+                        const templateFieldNames = Object.values(template.fields).flatMap(s => s.fields.map(f => f.name));
+                        const otherFields = data.fields.filter(f => !templateFieldNames.includes(f.field));
+                        
+                        if (otherFields.length > 0) {
+                            const otherHeader = document.createElement('tr');
+                            otherHeader.className = 'bg-gray-50 dark:bg-gray-700/50';
+                            otherHeader.innerHTML = `<td colspan="3" class="px-4 py-2 font-bold text-gray-800 dark:text-gray-200 uppercase text-xs tracking-wider">Дополнительно</td>`;
+                            fieldsTableBody.appendChild(otherHeader);
+                            
+                            otherFields.forEach(f => addFieldRow(fieldsTableBody, f));
+                        }
+                    } else {
+                        // Fallback to simple list
+                        data.fields.forEach(field => addFieldRow(fieldsTableBody, field));
+                    }
+                    
+                    // Render Tables
+                    if (tablesLoading) tablesLoading.remove();
+                    renderTables(data, template, tablesContainer);
+                    
+                    downloadBtn.href = `/download_result/${taskId}?format=extracted`;
+                } else {
+                    noDocumentMsg.classList.remove('hidden');
+                    if (tablesLoading) tablesLoading.remove();
+                }
+            } catch (err) {
+                console.error('Error loading extracted data:', err);
+                loadingIndicator.classList.add('hidden');
+                noDocumentMsg.classList.remove('hidden');
+                noDocumentMsg.querySelector('p').textContent = 'Ошибка при загрузке данных';
+                if (tablesLoading) tablesLoading.remove();
+            }
         }
-        
+
+        function addFieldRow(container, field) {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
+            
+            const confidence = parseFloat(field.confidence) || 0;
+            const confPercent = Math.round(confidence * 100);
+            const confClass = confidence > 0.8 ? 'confidence-high' :
+                             confidence > 0.5 ? 'confidence-medium' : 'confidence-low';
+            
+            row.innerHTML = `
+                <td class="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">${escapeHtml(field.field)}</td>
+                <td class="px-4 py-2 text-gray-900 dark:text-gray-100">${escapeHtml(field.value || '—')}</td>
+                <td class="px-4 py-2 ${confClass} font-medium">${confPercent > 0 ? confPercent + '%' : '—'}</td>
+            `;
+            container.appendChild(row);
+        }
+
+        function renderTables(data, template, tablesContainer) {
+            if (data.tables && data.tables.length > 0) {
+                data.tables.forEach((table, index) => {
+                    if (index >= 3) return;
+                    
+                    const tableWrapper = document.createElement('div');
+                    tableWrapper.className = 'border dark:border-gray-600 rounded-lg overflow-hidden mb-6 bg-white dark:bg-gray-800 shadow-sm';
+                    
+                    const header = document.createElement('div');
+                    header.className = 'bg-gray-100 dark:bg-gray-700 px-4 py-2 font-medium text-gray-700 dark:text-gray-300 flex justify-between items-center';
+                    
+                    const title = template && template.table ? template.table.title : `Таблица ${index + 1}`;
+                    header.innerHTML = `
+                        <span>${escapeHtml(title)}</span>
+                        <span class="text-xs text-gray-500">${table.length} строк × ${Math.max(...table.map(r => r.length))} колонок</span>
+                    `;
+                    tableWrapper.appendChild(header);
+                    
+                    const scrollContainer = document.createElement('div');
+                    scrollContainer.className = 'table-container overflow-x-auto';
+                    
+                    const tableEl = document.createElement('table');
+                    tableEl.className = 'min-w-full divide-y divide-gray-200 dark:divide-gray-600';
+                    
+                    // Use template columns if count matches
+                    const firstRow = table[0] || [];
+                    let headerCells = [];
+                    let dataRows = table;
+
+                    if (template && template.table && template.table.columns) {
+                         headerCells = template.table.columns;
+                    }
+
+                    const thead = document.createElement('thead');
+                    thead.className = 'bg-gray-50 dark:bg-gray-900';
+                    const headerTr = document.createElement('tr');
+                    
+                    if (headerCells.length > 0 && Math.abs(headerCells.length - firstRow.length) <= 3) {
+                        // Apply template headers
+                        headerCells.forEach(col => {
+                            const th = document.createElement('th');
+                            const alignClass = col.align === 'center' ? 'text-center' : (col.align === 'right' ? 'text-right' : 'text-left');
+                            th.className = `px-4 py-2 ${alignClass} text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider`;
+                            th.textContent = col.name;
+                            headerTr.appendChild(th);
+                        });
+                        // If template header is used, we usually skip the first row of data if it looks like a header
+                        if (firstRow.some(cell => typeof cell === 'string' && cell.match(/[А-Яа-я]{3,}/))) {
+                            dataRows = table.slice(1);
+                        }
+                    } else {
+                        // Use first row as header
+                        firstRow.forEach(cell => {
+                            const th = document.createElement('th');
+                            th.className = 'px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider';
+                            th.textContent = cell;
+                            headerTr.appendChild(th);
+                        });
+                        dataRows = table.slice(1);
+                    }
+                    thead.appendChild(headerTr);
+                    tableEl.appendChild(thead);
+                    
+                    const tbody = document.createElement('tbody');
+                    tbody.className = 'divide-y divide-gray-200 dark:divide-gray-600';
+                    
+                    dataRows.forEach((row, rowIdx) => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
+                        
+                        row.forEach((cell, cellIdx) => {
+                            const td = document.createElement('td');
+                            let align = 'left';
+                            if (headerCells[cellIdx]) {
+                                align = headerCells[cellIdx].align || 'left';
+                            }
+                            const alignClass = align === 'center' ? 'text-center' : (align === 'right' ? 'text-right' : 'text-left');
+                            td.className = `px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap text-sm ${alignClass}`;
+                            td.textContent = cell;
+                            tr.appendChild(td);
+                        });
+                        
+                        tbody.appendChild(tr);
+                    });
+                    
+                    tableEl.appendChild(tbody);
+                    scrollContainer.appendChild(tableEl);
+                    tableWrapper.appendChild(scrollContainer);
+                    tablesContainer.appendChild(tableWrapper);
+                });
+            } else {
+                tablesContainer.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                        <p class="mt-2">Таблицы в документе не найдены</p>
+                    </div>
+                `;
+            }
+        }
+
         function loadSeals(taskId) {
             const container = document.getElementById('seals-container');
             
@@ -328,8 +428,9 @@
         }
         
         function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
             const div = document.createElement('div');
-            div.textContent = text;
+            div.textContent = String(text);
             return div.innerHTML;
         }
     </script>

@@ -28,10 +28,10 @@ class InvoiceHandler(BaseDocumentHandler):
     DOCUMENT_TYPE_DISPLAY = "Счет-фактура"
 
     DETECTION_PATTERNS = [
-        r'счет[_\s]фактура',
-        r'счет\s+фактура',
         r'счет-фактура',
-        r'\bсчф?\b.*(?:фактура|универсальный)',
+        r'счет\s+фактура',
+        r'(?<!универсальный\s)счет-фактура',
+        r'\bсчф?\b.*(?:фактура)',
     ]
 
     REQUIRED_FIELDS = [

@@ -145,8 +145,9 @@ class SchetHandler(BaseDocumentHandler):
     DOCUMENT_TYPE_DISPLAY = "Счет на оплату"
 
     DETECTION_PATTERNS = [
-        r'счет\s+(?:на\s+)?оплату?',
-        r'(?:счёт|счет)\s*(?:на\s+оплату?)?',
+        r'счет\s+(?:на\s+)?оплату(?!-фактура)',
+        r'(?<!-)(?:счёт|счет)\s+на\s+оплату(?!-фактура)',
+        r'(?<!-)(?:счёт|счет)\s*№\s*\d+',
         r'(?:invoice|bill)\s*(?:no\.?|number)?',
     ]
 
